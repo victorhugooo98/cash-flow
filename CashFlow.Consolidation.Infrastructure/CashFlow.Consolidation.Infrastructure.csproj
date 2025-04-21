@@ -9,6 +9,7 @@
     <ItemGroup>
         <ProjectReference Include="..\CashFlow.Consolidation.Application\CashFlow.Consolidation.Application.csproj"/>
         <ProjectReference Include="..\CashFlow.Consolidation.Domain\CashFlow.Consolidation.Domain.csproj"/>
+        <ProjectReference Include="..\CashFlow.Transaction.Application\CashFlow.Transaction.Application.csproj" />
     </ItemGroup>
 
     <ItemGroup>

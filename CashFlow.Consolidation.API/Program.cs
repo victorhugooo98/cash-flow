@@ -36,11 +36,15 @@ builder.Services.AddSingleton<CircuitBreakerPolicyProvider>();
 // Configure MassTransit with RabbitMQ
 builder.Services.AddMassTransit(x =>
 {
+    // Register the consumer
     x.AddConsumer<TransactionEventConsumer>(cfg =>
     {
-        // Configure retry policy
-        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-
+        // Configure retry policy with exponential backoff
+        cfg.UseMessageRetry(r => 
+        {
+            r.Intervals(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15));
+        });
+        
         // Configure circuit breaker
         cfg.UseCircuitBreaker(cb =>
         {
@@ -50,28 +54,44 @@ builder.Services.AddMassTransit(x =>
             cb.ResetInterval = TimeSpan.FromMinutes(5);
         });
     });
-
+    
+    // Configure RabbitMQ
     x.UsingRabbitMq((context, cfg) =>
     {
+        // Configure RabbitMQ connection
         cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
         {
             h.Username(builder.Configuration["RabbitMQ:Username"]);
             h.Password(builder.Configuration["RabbitMQ:Password"]);
         });
-
+        
         // Configure the consumer endpoint
         cfg.ReceiveEndpoint("cashflow-transaction-events", e =>
         {
             // Set concurrency limit to handle high load
-            e.PrefetchCount = 20;
-
+            e.PrefetchCount = 50;
+            
+            // Configure error handling
+            e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+            
+            // Configure deadletter queue
+            e.UseDeadLetterQueue("cashflow-transaction-events-dlq");
+            
             // Configure consumer
             e.ConfigureConsumer<TransactionEventConsumer>(context);
         });
-
+        
         cfg.ConfigureEndpoints(context);
     });
 });
+
+// Add health checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ConsolidationDbContext>()
+    .AddRabbitMQ(rabbitMQOptions =>
+    {
+        rabbitMQOptions.Uri = new Uri($"amqp://{builder.Configuration["RabbitMQ:Username"]}:{builder.Configuration["RabbitMQ:Password"]}@{builder.Configuration["RabbitMQ:Host"]}");
+    });
 
 var app = builder.Build();
 
@@ -85,6 +105,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 // Ensure database is created
 using (var scope = app.Services.CreateScope())
