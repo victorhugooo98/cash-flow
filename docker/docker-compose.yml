@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # SQL Server
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cashflow-sql-server
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrongPassword!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrongPassword!" -Q "SELECT 1" -b -o /dev/null
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - cashflow-network
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cashflow-rabbitmq
+    ports:
+      - "5672:5672"  # AMQP protocol port
+      - "15672:15672"  # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cashflow-network
+
+  # Transaction Service
+  transaction-service:
+    build:
+      context: .
+      dockerfile: ./CashFlow.Transaction.API/Dockerfile
+    container_name: cashflow-transaction-service
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__TransactionDatabase=Server=sql-server;Database=CashFlow.Transactions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;
+      - RabbitMQ__Host=rabbitmq
+    depends_on:
+      sql-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cashflow-network
+
+  # Consolidation Service
+  consolidation-service:
+    build:
+      context: .
+      dockerfile: ./CashFlow.Consolidation.API/Dockerfile
+    container_name: cashflow-consolidation-service
+    ports:
+      - "5002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__ConsolidationDatabase=Server=sql-server;Database=CashFlow.Consolidation;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;
+      - RabbitMQ__Host=rabbitmq
+    depends_on:
+      sql-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cashflow-network
+
+volumes:
+  sqldata:
+  rabbitmq_data:
+
+networks:
+  cashflow-network:
+    driver: bridge
