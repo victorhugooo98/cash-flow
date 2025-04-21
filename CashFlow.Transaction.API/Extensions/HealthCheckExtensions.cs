@@ -1,31 +1,35 @@
-using CashFlow.Transaction.Infrastructure.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Text;
 using System.Text.Json;
+using CashFlow.Transaction.API.HealthChecks;
+using CashFlow.Transaction.Infrastructure.Data;
 
 namespace CashFlow.Transaction.API.Extensions;
 
 public static class HealthCheckExtensions
 {
-    public static IServiceCollection AddCustomHealthChecks(this IServiceCollection services, 
+    public static IServiceCollection AddCustomHealthChecks(this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Register health check dependencies
+        services.AddScoped<DbContextHealthCheck<TransactionDbContext>>();
+        services.AddScoped<RabbitMQHealthCheck>(sp =>
+            new RabbitMQHealthCheck(
+                $"amqp://{configuration["RabbitMQ:Username"]}:{configuration["RabbitMQ:Password"]}@{configuration["RabbitMQ:Host"]}"));
+
+        // Add health checks
         services.AddHealthChecks()
-            // Add database health check
-            .AddDbContextCheck<TransactionDbContext>(
-                name: "database",
-                failureStatus: HealthStatus.Degraded,
-                tags: new[] { "ready" })
-            // Add RabbitMQ health check
-            .AddRabbitMQ(
-                rabbitConnectionString: $"amqp://{configuration["RabbitMQ:Username"]}:{configuration["RabbitMQ:Password"]}@{configuration["RabbitMQ:Host"]}",
-                name: "rabbitmq",
-                failureStatus: HealthStatus.Degraded,
-                tags: new[] { "ready" });
+            .AddCheck<DbContextHealthCheck<TransactionDbContext>>(
+                "database",
+                HealthStatus.Degraded,
+                new[] { "ready" })
+            .AddCheck<RabbitMQHealthCheck>(
+                "rabbitmq",
+                HealthStatus.Degraded,
+                new[] { "ready" });
 
         return services;
     }
@@ -67,20 +71,21 @@ public static class HealthCheckExtensions
             foreach (var healthReportEntry in healthReport.Entries)
             {
                 jsonWriter.WriteStartObject(healthReportEntry.Key);
-                jsonWriter.WriteString("status", 
+                jsonWriter.WriteString("status",
                     healthReportEntry.Value.Status.ToString());
-                jsonWriter.WriteString("description", 
+                jsonWriter.WriteString("description",
                     healthReportEntry.Value.Description);
-                
+
                 jsonWriter.WriteStartObject("data");
                 foreach (var item in healthReportEntry.Value.Data)
                 {
                     jsonWriter.WritePropertyName(item.Key);
-                    JsonSerializer.Serialize(jsonWriter, item.Value, 
+                    JsonSerializer.Serialize(jsonWriter, item.Value,
                         item.Value?.GetType() ?? typeof(object));
                 }
+
                 jsonWriter.WriteEndObject();
-                
+
                 jsonWriter.WriteEndObject();
             }
 

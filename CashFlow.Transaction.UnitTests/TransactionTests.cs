@@ -8,14 +8,14 @@ public class TransactionTests
     public void CreateTransaction_WithValidParameters_ShouldSucceed()
     {
         // Arrange
-        string merchantId = "merchant123";
-        decimal amount = 100.50m;
-        TransactionType type = TransactionType.Credit;
-        string description = "Test transaction";
-            
+        var merchantId = "merchant123";
+        var amount = 100.50m;
+        var type = TransactionType.Credit;
+        var description = "Test transaction";
+
         // Act
         var transaction = new Domain.Models.Transaction(merchantId, amount, type, description);
-            
+
         // Assert
         Assert.Equal(merchantId, transaction.MerchantId);
         Assert.Equal(amount, transaction.Amount);
@@ -24,7 +24,7 @@ public class TransactionTests
         Assert.NotEqual(Guid.Empty, transaction.Id);
         Assert.True(DateTime.UtcNow.Subtract(transaction.Timestamp).TotalSeconds < 5);
     }
-        
+
     [Theory]
     [InlineData("", 100, TransactionType.Credit, "Description")]
     [InlineData("merchant123", 0, TransactionType.Credit, "Description")]

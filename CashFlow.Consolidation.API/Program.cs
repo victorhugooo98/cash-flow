@@ -40,7 +40,7 @@ builder.Services.AddMassTransit(x =>
     {
         // Configure retry policy
         cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-        
+
         // Configure circuit breaker
         cfg.UseCircuitBreaker(cb =>
         {
@@ -50,7 +50,7 @@ builder.Services.AddMassTransit(x =>
             cb.ResetInterval = TimeSpan.FromMinutes(5);
         });
     });
-    
+
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
@@ -58,17 +58,17 @@ builder.Services.AddMassTransit(x =>
             h.Username(builder.Configuration["RabbitMQ:Username"]);
             h.Password(builder.Configuration["RabbitMQ:Password"]);
         });
-        
+
         // Configure the consumer endpoint
         cfg.ReceiveEndpoint("cashflow-transaction-events", e =>
         {
             // Set concurrency limit to handle high load
             e.PrefetchCount = 20;
-            
+
             // Configure consumer
             e.ConfigureConsumer<TransactionEventConsumer>(context);
         });
-        
+
         cfg.ConfigureEndpoints(context);
     });
 });

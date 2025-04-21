@@ -9,7 +9,7 @@ public class BalancesController : ControllerBase
 {
     private readonly IDailyBalanceRepository _balanceRepository;
     private readonly ILogger<BalancesController> _logger;
-        
+
     public BalancesController(
         IDailyBalanceRepository balanceRepository,
         ILogger<BalancesController> logger)
@@ -17,7 +17,7 @@ public class BalancesController : ControllerBase
         _balanceRepository = balanceRepository;
         _logger = logger;
     }
-        
+
     [HttpGet("daily")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -28,10 +28,10 @@ public class BalancesController : ControllerBase
         try
         {
             var balance = await _balanceRepository.GetByMerchantAndDateAsync(merchantId, date);
-                
+
             if (balance == null)
                 return NotFound($"No balance record found for merchant {merchantId} on {date:yyyy-MM-dd}");
-                
+
             var balanceResponse = new
             {
                 balance.Id,
@@ -42,15 +42,15 @@ public class BalancesController : ControllerBase
                 balance.TotalDebits,
                 balance.ClosingBalance
             };
-                
+
             return Ok(balanceResponse);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving daily balance for merchant {MerchantId} on {Date}", 
+            _logger.LogError(ex, "Error retrieving daily balance for merchant {MerchantId} on {Date}",
                 merchantId, date);
-                
-            return StatusCode(StatusCodes.Status500InternalServerError, 
+
+            return StatusCode(StatusCodes.Status500InternalServerError,
                 "An error occurred while retrieving the balance information");
         }
     }

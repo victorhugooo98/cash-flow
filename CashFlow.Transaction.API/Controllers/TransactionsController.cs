@@ -12,12 +12,12 @@ namespace CashFlow.Transaction.API.Controllers;
 public class TransactionsController : ControllerBase
 {
     private readonly IMediator _mediator;
-        
+
     public TransactionsController(IMediator mediator)
     {
         _mediator = mediator;
     }
-        
+
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -25,10 +25,10 @@ public class TransactionsController : ControllerBase
     {
         var command = CreateTransactionCommand.FromRequest(request);
         var transactionId = await _mediator.Send(command);
-            
+
         return CreatedAtAction(nameof(GetTransaction), new { id = transactionId }, null);
     }
-        
+
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -36,13 +36,13 @@ public class TransactionsController : ControllerBase
     {
         var query = new GetTransactionByIdQuery { Id = id };
         var transaction = await _mediator.Send(query);
-            
+
         if (transaction == null)
             return NotFound();
-            
+
         return Ok(transaction);
     }
-        
+
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions(
@@ -54,7 +54,7 @@ public class TransactionsController : ControllerBase
             MerchantId = merchantId,
             Date = date
         };
-            
+
         var transactions = await _mediator.Send(query);
         return Ok(transactions);
     }

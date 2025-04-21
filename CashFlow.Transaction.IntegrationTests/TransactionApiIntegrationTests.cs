@@ -6,7 +6,6 @@ using CashFlow.Transaction.Application.DTOs;
 using CashFlow.Transaction.Domain.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.VisualStudio.TestPlatform.TestHost;
-using Xunit;
 
 namespace CashFlow.Transaction.IntegrationTests;
 
@@ -14,9 +13,10 @@ public class TransactionApiIntegrationTests : IClassFixture<WebApplicationFactor
 {
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
-    private readonly JsonSerializerOptions _jsonOptions = new() 
-    { 
-        PropertyNameCaseInsensitive = true 
+
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
     };
 
     public TransactionApiIntegrationTests(WebApplicationFactory<Program> factory)
@@ -62,12 +62,12 @@ public class TransactionApiIntegrationTests : IClassFixture<WebApplicationFactor
             Description = "Test debit transaction"
         };
 
-        var createResponse = await _client.PostAsync("/api/transactions", 
+        var createResponse = await _client.PostAsync("/api/transactions",
             new StringContent(
                 JsonSerializer.Serialize(createRequest),
                 Encoding.UTF8,
                 "application/json"));
-        
+
         var location = createResponse.Headers.Location;
         Assert.NotNull(location);
 
@@ -89,19 +89,19 @@ public class TransactionApiIntegrationTests : IClassFixture<WebApplicationFactor
     {
         // Arrange - Create a unique merchant ID for this test
         var merchantId = $"TestMerchant_{Guid.NewGuid()}";
-        
+
         // Create two transactions for this merchant
-        for (int i = 0; i < 2; i++)
+        for (var i = 0; i < 2; i++)
         {
             var createRequest = new CreateTransactionRequest
             {
                 MerchantId = merchantId,
                 Amount = 100m + i,
                 Type = i % 2 == 0 ? TransactionType.Credit : TransactionType.Debit,
-                Description = $"Test transaction {i+1}"
+                Description = $"Test transaction {i + 1}"
             };
 
-            await _client.PostAsync("/api/transactions", 
+            await _client.PostAsync("/api/transactions",
                 new StringContent(
                     JsonSerializer.Serialize(createRequest),
                     Encoding.UTF8,

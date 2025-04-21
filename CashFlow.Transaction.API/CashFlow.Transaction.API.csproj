@@ -7,16 +7,20 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CashFlow.Transaction.Application\CashFlow.Transaction.Application.csproj" />
-      <ProjectReference Include="..\CashFlow.Transaction.Infrastructure\CashFlow.Transaction.Infrastructure.csproj" />
+        <ProjectReference Include="..\CashFlow.Transaction.Application\CashFlow.Transaction.Application.csproj"/>
+        <ProjectReference Include="..\CashFlow.Transaction.Infrastructure\CashFlow.Transaction.Infrastructure.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0-preview.3.25172.1" />
-      <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-      <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
-      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-      <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.1" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0-preview.3.25172.1"/>
+        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0"/>
+        <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0"/>
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.1"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI" Version="8.0.0"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.0"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="8.0.0"/>
+        <PackageReference Include="RabbitMQ.Client" Version="6.7.0"/>
     </ItemGroup>
 
 </Project>

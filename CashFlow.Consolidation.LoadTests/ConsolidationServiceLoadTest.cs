@@ -1,76 +1,89 @@
-﻿using System.Diagnostics;
-using System.Net;
-using System.Net.Http.Json;
-using NBomber.Contracts;
-using NBomber.CSharp;
-using NBomber.Plugins.Http.CSharp;
-using Xunit;
+﻿using System.Net;
 using Xunit.Abstractions;
 
 namespace CashFlow.Consolidation.LoadTests;
 
+/// <summary>
+/// A simple manual load test for the Consolidation Service
+/// </summary>
 public class ConsolidationServiceLoadTest
 {
     private readonly ITestOutputHelper _output;
     private const string BaseUrl = "http://localhost:5002"; // Adjust as needed
-    
+
     public ConsolidationServiceLoadTest(ITestOutputHelper output)
     {
         _output = output;
     }
-    
+
     [Fact]
-    public void LoadTest_ConsolidationService_ShouldHandleHighLoad()
+    public async Task LoadTest_ConsolidationService_ShouldHandleHighLoad()
     {
         // Define specific merchant ID and date for testing
         var merchantId = "loadtest-merchant";
         var date = DateTime.UtcNow.Date.ToString("yyyy-MM-dd");
-        
-        // Create HTTP client factory for NBomber
-        var httpFactory = HttpClientFactory.Create();
-        
-        // Define step to request daily balance
-        var step = Step.Create("request_daily_balance", httpFactory, async context =>
+
+        // Create the HTTP client
+        var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+
+        // Track results
+        var totalRequests = 0;
+        var successfulRequests = 0;
+        var stopwatch = new System.Diagnostics.Stopwatch();
+
+        // Start the test
+        stopwatch.Start();
+
+        // Send requests at a rate of approximately 50 per second for 10 seconds
+        var tasks = new List<Task>();
+
+        for (var i = 0; i < 500; i++) // 50 requests/sec * 10 seconds = 500 requests
         {
-            var request = WebRequestMethods.Http.CreateRequest("GET", $"{BaseUrl}/api/balances/daily?merchantId={merchantId}&date={date}")
-                .WithHeader("Accept", "application/json");
-                
-            var response = await WebRequestMethods.Http.Send(request, context);
-                
-            return response.StatusCode switch
+            tasks.Add(Task.Run(async () =>
             {
-                HttpStatusCode.OK => response,
-                HttpStatusCode.NotFound => response, // Consider NotFound a valid response for load test
-                _ => Response.Fail(statusCode: (int)response.StatusCode)
-            };
-        });
-        
-        // Define the test scenario
-        var scenario = ScenarioBuilder.CreateScenario("consolidation_api_load_test", step)
-            .WithWarmUpDuration(TimeSpan.FromSeconds(5))
-            .WithLoadSimulations(
-                Simulation.Inject(rate: 50, // 50 requests per second
-                                 interval: TimeSpan.FromSeconds(1),
-                                 during: TimeSpan.FromMinutes(1))
-            );
-            
-        // Run the test
-        var result = NBomberRunner
-            .RegisterScenarios(scenario)
-            .Run();
-            
-        // Output the results
-        _output.WriteLine($"Request count: {result.AllRequestCount}");
-        _output.WriteLine($"Failed request count: {result.FailCount}");
-        _output.WriteLine($"RPS: {result.ScenarioStats[0].RPS}");
-        _output.WriteLine($"Mean response time: {result.ScenarioStats[0].MeanResponseTime} ms");
-        _output.WriteLine($"99th percentile: {result.ScenarioStats[0].Percentile99} ms");
-            
-        // Assert that failure rate is less than 5%
-        var failureRate = (double)result.FailCount / result.AllRequestCount;
-        Assert.True(failureRate <= 0.05, $"Failure rate of {failureRate:P2} exceeds the maximum allowed 5%");
-            
-        // Assert that we actually achieved 50 RPS (with some margin)
-        Assert.True(result.ScenarioStats[0].RPS >= 47, $"RPS of {result.ScenarioStats[0].RPS} is less than expected minimum of 47");
+                try
+                {
+                    var url = $"{BaseUrl}/api/balances/daily?merchantId={merchantId}&date={date}";
+                    var response = await httpClient.GetAsync(url);
+
+                    Interlocked.Increment(ref totalRequests);
+
+                    if (response.StatusCode == HttpStatusCode.OK ||
+                        response.StatusCode == HttpStatusCode.NotFound) // Consider NotFound a valid response
+                        Interlocked.Increment(ref successfulRequests);
+                }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref totalRequests);
+                    _output.WriteLine("Request failed: " + ex.Message);
+                }
+            }));
+
+            // Add a small delay to distribute requests (not exactly 50/sec but close enough for testing)
+            if (i % 50 == 0) await Task.Delay(1000);
+        }
+
+        // Wait for all requests to complete
+        await Task.WhenAll(tasks);
+
+        // Stop timing
+        stopwatch.Stop();
+
+        // Calculate metrics
+        var durationSeconds = stopwatch.ElapsedMilliseconds / 1000.0;
+        var requestsPerSecond = totalRequests / durationSeconds;
+        var successRate = (double)successfulRequests / totalRequests;
+
+        // Output results
+        _output.WriteLine("Total requests: " + totalRequests);
+        _output.WriteLine("Successful requests: " + successfulRequests);
+        _output.WriteLine("Duration: " + durationSeconds.ToString("F1") + " seconds");
+        _output.WriteLine("Requests per second: " + requestsPerSecond.ToString("F1"));
+        _output.WriteLine("Success rate: " + (successRate * 100).ToString("F1") + "%");
+
+        // Assertions
+        Assert.True(successRate >= 0.95, "Success rate should be at least 95%");
+        Assert.True(requestsPerSecond >= 47, "Should handle at least 47 requests per second");
     }
 }

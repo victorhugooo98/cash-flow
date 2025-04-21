@@ -7,12 +7,12 @@ namespace CashFlow.Transaction.Infrastructure.Messaging;
 public class TransactionEventPublisher : ITransactionEventPublisher
 {
     private readonly IBus _bus;
-        
+
     public TransactionEventPublisher(IBus bus)
     {
         _bus = bus;
     }
-        
+
     public async Task PublishTransactionCreatedAsync(Domain.Models.Transaction transaction)
     {
         var @event = new TransactionCreatedEvent
@@ -24,7 +24,7 @@ public class TransactionEventPublisher : ITransactionEventPublisher
             Description = transaction.Description,
             Timestamp = transaction.Timestamp
         };
-            
+
         await _bus.Publish(@event);
     }
 }

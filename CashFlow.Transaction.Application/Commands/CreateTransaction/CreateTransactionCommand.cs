@@ -9,7 +9,7 @@ public class CreateTransactionCommand : IRequest<Guid>
     public decimal Amount { get; set; }
     public string Type { get; set; }
     public string Description { get; set; }
-        
+
     public static CreateTransactionCommand FromRequest(CreateTransactionRequest request)
     {
         return new CreateTransactionCommand
