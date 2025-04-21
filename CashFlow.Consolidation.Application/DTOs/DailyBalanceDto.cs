@@ -1,9 +1,9 @@
 namespace CashFlow.Consolidation.Application.DTOs;
 
-public class DailyBalanceDto
+public record DailyBalanceDto
 {
     public Guid Id { get; set; }
-    public string MerchantId { get; set; }
+    public string MerchantId { get; set; } = null!;
     public DateTime Date { get; set; }
     public decimal OpeningBalance { get; set; }
     public decimal TotalCredits { get; set; }

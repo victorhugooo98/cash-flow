@@ -5,26 +5,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CashFlow.Consolidation.Infrastructure.Repositories;
 
-public class DailyBalanceRepository : IDailyBalanceRepository
+public class DailyBalanceRepository(ConsolidationDbContext context) : IDailyBalanceRepository
 {
-    private readonly ConsolidationDbContext _context;
-
-    public DailyBalanceRepository(ConsolidationDbContext context)
+    public async Task<DailyBalance?> GetByMerchantAndDateAsync(string merchantId, DateTime date)
     {
-        _context = context;
-    }
-
-    public async Task<DailyBalance> GetByMerchantAndDateAsync(string merchantId, DateTime date)
-    {
-        return await _context.DailyBalances
+        return await context.DailyBalances
+            .AsNoTracking()
             .FirstOrDefaultAsync(b => b.MerchantId == merchantId && b.Date == date.Date);
     }
 
-    public async Task<DailyBalance> GetPreviousDayBalanceAsync(string merchantId, DateTime date)
+    public async Task<DailyBalance?> GetPreviousDayBalanceAsync(string merchantId, DateTime date)
     {
         var previousDay = date.Date.AddDays(-1);
 
-        return await _context.DailyBalances
+        return await context.DailyBalances
+            .AsNoTracking()
             .Where(b => b.MerchantId == merchantId && b.Date <= previousDay)
             .OrderByDescending(b => b.Date)
             .FirstOrDefaultAsync();
@@ -32,17 +27,17 @@ public class DailyBalanceRepository : IDailyBalanceRepository
 
     public async Task AddAsync(DailyBalance dailyBalance)
     {
-        await _context.DailyBalances.AddAsync(dailyBalance);
+        await context.DailyBalances.AddAsync(dailyBalance);
     }
 
-    public Task UpdateAsync(DailyBalance dailyBalance)
+    public async Task UpdateAsync(DailyBalance dailyBalance)
     {
-        _context.DailyBalances.Update(dailyBalance);
-        return Task.CompletedTask;
+        context.DailyBalances.Update(dailyBalance);
+        await Task.CompletedTask;
     }
 
-    public Task SaveChangesAsync()
+    public async Task SaveChangesAsync()
     {
-        return _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 }

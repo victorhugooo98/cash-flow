@@ -10,6 +10,10 @@ using Serilog;
 using Serilog.Events;
 using Microsoft.OpenApi.Models;
 using System;
+using CashFlow.Shared.Middleware;
+using CashFlow.Transaction.Application.Behaviors;
+using CashFlow.Transaction.Application.Commands.CreateTransaction;
+using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +26,11 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
+
+builder.Services.AddMediatR(cfg => {
+    cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly);
+    cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+});
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -120,11 +129,13 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 // Ensure database is created
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ConsolidationDbContext>();
-    dbContext.Database.EnsureCreated();
+    dbContext.Database.Migrate();
 }
 
 app.Run();

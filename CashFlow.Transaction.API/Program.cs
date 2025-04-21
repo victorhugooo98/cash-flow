@@ -11,7 +11,10 @@ using Serilog;
 using Serilog.Events;
 using Microsoft.OpenApi.Models;
 using System;
+using CashFlow.Shared.Middleware;
 using CashFlow.Transaction.API.HealthChecks;
+using CashFlow.Transaction.Application.Behaviors;
+using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,7 +39,10 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Add MediatR
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly));
+builder.Services.AddMediatR(cfg => {
+    cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly);
+    cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+});
 
 // Add DbContext
 builder.Services.AddDbContext<TransactionDbContext>(options =>
@@ -102,11 +108,13 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 // Ensure database is created
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<TransactionDbContext>();
-    dbContext.Database.EnsureCreated();
+    dbContext.Database.Migrate();
 }
 
 app.Run();

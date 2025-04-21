@@ -27,11 +27,11 @@ public static class HealthCheckExtensions
             .AddCheck<DbContextHealthCheck<TransactionDbContext>>(
                 "database",
                 failureStatus: HealthStatus.Degraded,
-                tags: new[] { "ready" })
+                tags: ["ready"])
             .AddCheck<RabbitMQHealthCheck>(
                 "rabbitmq",
                 failureStatus: HealthStatus.Degraded,
-                tags: new[] { "ready" });
+                tags: ["ready"]);
 
         return services;
     }
