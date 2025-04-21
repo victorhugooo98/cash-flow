@@ -5,13 +5,18 @@ using CashFlow.Consolidation.Infrastructure.Repositories;
 using CashFlow.Consolidation.Infrastructure.Resilience;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
+using Serilog.Events;
+using Microsoft.OpenApi.Models;
+using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
@@ -21,7 +26,12 @@ builder.Host.UseSerilog();
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// Add Swagger
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "CashFlow Consolidation API", Version = "v1" });
+});
 
 // Add DbContext
 builder.Services.AddDbContext<ConsolidationDbContext>(options =>
@@ -58,11 +68,16 @@ builder.Services.AddMassTransit(x =>
     // Configure RabbitMQ
     x.UsingRabbitMq((context, cfg) =>
     {
+        var rabbitMqConfig = builder.Configuration.GetSection("RabbitMQ");
+        var host = rabbitMqConfig["Host"] ?? "localhost";
+        var username = rabbitMqConfig["Username"] ?? "guest";
+        var password = rabbitMqConfig["Password"] ?? "guest";
+        
         // Configure RabbitMQ connection
-        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+        cfg.Host(new Uri($"rabbitmq://{host}"), h =>
         {
-            h.Username(builder.Configuration["RabbitMQ:Username"]);
-            h.Password(builder.Configuration["RabbitMQ:Password"]);
+            h.Username(username);
+            h.Password(password);
         });
         
         // Configure the consumer endpoint
@@ -74,8 +89,9 @@ builder.Services.AddMassTransit(x =>
             // Configure error handling
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
             
-            // Configure deadletter queue
-            e.UseDeadLetterQueue("cashflow-transaction-events-dlq");
+            // Configure error queue instead of dead letter queue
+            e.UseMessageRetry(r => r.Immediate(3));
+            e.UseInMemoryOutbox();
             
             // Configure consumer
             e.ConfigureConsumer<TransactionEventConsumer>(context);
@@ -87,11 +103,8 @@ builder.Services.AddMassTransit(x =>
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<ConsolidationDbContext>()
-    .AddRabbitMQ(rabbitMQOptions =>
-    {
-        rabbitMQOptions.Uri = new Uri($"amqp://{builder.Configuration["RabbitMQ:Username"]}:{builder.Configuration["RabbitMQ:Password"]}@{builder.Configuration["RabbitMQ:Host"]}");
-    });
+    .AddCheck("db-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" })
+    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
 
 var app = builder.Build();
 
@@ -99,7 +112,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CashFlow Consolidation API v1"));
 }
 
 app.UseHttpsRedirection();

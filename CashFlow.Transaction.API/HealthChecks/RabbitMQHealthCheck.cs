@@ -1,38 +1,47 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using RabbitMQ.Client;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace CashFlow.Transaction.API.HealthChecks;
-
-public class RabbitMQHealthCheck : IHealthCheck
+namespace CashFlow.Transaction.API.HealthChecks
 {
-    private readonly string _connectionString;
-
-    public RabbitMQHealthCheck(string connectionString)
+    public class RabbitMQHealthCheck : IHealthCheck
     {
-        _connectionString = connectionString;
-    }
+        private readonly string _host;
+        private readonly string _username;
+        private readonly string _password;
 
-    public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context,
-        CancellationToken cancellationToken = default)
-    {
-        try
+        public RabbitMQHealthCheck(string host, string username, string password)
         {
-            // Create a connection to RabbitMQ
-            var factory = new ConnectionFactory
-            {
-                Uri = new Uri(_connectionString),
-                RequestedConnectionTimeout = TimeSpan.FromSeconds(5)
-            };
-
-            using var connection = factory.CreateConnection();
-            using var channel = connection.CreateModel();
-
-            // If we got here, we could connect to RabbitMQ
-            return Task.FromResult(HealthCheckResult.Healthy("RabbitMQ connection is healthy"));
+            _host = host;
+            _username = username;
+            _password = password;
         }
-        catch (Exception ex)
+
+        public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(HealthCheckResult.Unhealthy("Cannot connect to RabbitMQ", ex));
+            try
+            {
+                // Create a connection factory
+                var factory = new ConnectionFactory
+                {
+                    HostName = _host,
+                    UserName = _username,
+                    Password = _password,
+                    RequestedConnectionTimeout = TimeSpan.FromSeconds(5)
+                };
+
+                // Try to create a connection asynchronously
+                await using var connection = await factory.CreateConnectionAsync(cancellationToken);
+                await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+                // If we got here, we could connect to RabbitMQ
+                return HealthCheckResult.Healthy("RabbitMQ connection is healthy");
+            }
+            catch (Exception ex)
+            {
+                return HealthCheckResult.Unhealthy("Cannot connect to RabbitMQ", ex);
+            }
         }
     }
 }

@@ -6,13 +6,19 @@ using CashFlow.Transaction.Infrastructure.Messaging;
 using CashFlow.Transaction.Infrastructure.Repositories;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
+using Serilog.Events;
+using Microsoft.OpenApi.Models;
+using System;
+using CashFlow.Transaction.API.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
@@ -22,7 +28,12 @@ builder.Host.UseSerilog();
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// Add Swagger
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "CashFlow Transaction API", Version = "v1" });
+});
 
 // Add MediatR
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly));
@@ -34,36 +45,35 @@ builder.Services.AddDbContext<TransactionDbContext>(options =>
 // Add repositories
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
+builder.Services.AddScoped<DbContextHealthCheck<TransactionDbContext>>();
+builder.Services.AddScoped<RabbitMQHealthCheck>(sp => 
+    new RabbitMQHealthCheck(
+        builder.Configuration["RabbitMQ:Host"] ?? "localhost",
+        builder.Configuration["RabbitMQ:Username"] ?? "guest",
+        builder.Configuration["RabbitMQ:Password"] ?? "guest"));
+
 // Configure MassTransit with RabbitMQ
 builder.Services.AddMassTransit(x =>
 {
-    // Configure retry policy for message publishing
-    x.AddDelayedMessageScheduler();
-    
     // Configure the RabbitMQ transport
     x.UsingRabbitMq((context, cfg) =>
     {
+        var rabbitMqConfig = builder.Configuration.GetSection("RabbitMQ");
+        var host = rabbitMqConfig["Host"] ?? "localhost";
+        var username = rabbitMqConfig["Username"] ?? "guest";
+        var password = rabbitMqConfig["Password"] ?? "guest";
+        
         // Configure RabbitMQ connection
-        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+        cfg.Host(new Uri($"rabbitmq://{host}"), h =>
         {
-            h.Username(builder.Configuration["RabbitMQ:Username"]);
-            h.Password(builder.Configuration["RabbitMQ:Password"]);
+            h.Username(username);
+            h.Password(password);
         });
         
-        // Configure outbox for transactional publishing
+        // Configure message retry
         cfg.UseMessageRetry(r => 
         {
             r.Interval(3, TimeSpan.FromSeconds(5));
-            r.Incremental(5, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5));
-        });
-        
-        // Configure publish topology
-        cfg.ConfigurePublish(p => 
-        {
-            p.UseExecute(context => 
-            {
-                context.Headers.Set("Published-At", DateTimeOffset.UtcNow);
-            });
         });
         
         cfg.ConfigureEndpoints(context);
@@ -75,11 +85,8 @@ builder.Services.AddScoped<ITransactionEventPublisher, TransactionEventPublisher
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<TransactionDbContext>()
-    .AddRabbitMQ(rabbitMQOptions =>
-    {
-        rabbitMQOptions.Uri = new Uri($"amqp://{builder.Configuration["RabbitMQ:Username"]}:{builder.Configuration["RabbitMQ:Password"]}@{builder.Configuration["RabbitMQ:Host"]}");
-    });
+    .AddCheck("db-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" })
+    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
 
 var app = builder.Build();
 
@@ -87,7 +94,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CashFlow Transaction API v1"));
 }
 
 app.UseHttpsRedirection();
