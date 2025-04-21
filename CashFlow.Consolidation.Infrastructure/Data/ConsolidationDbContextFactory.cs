@@ -1,8 +1,7 @@
-// CashFlow.Consolidation.Infrastructure/Data/ConsolidationDbContextFactory.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using System.IO;
 using Microsoft.Extensions.Configuration;
+using System.IO;
 
 namespace CashFlow.Consolidation.Infrastructure.Data;
 
