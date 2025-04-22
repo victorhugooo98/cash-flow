@@ -95,8 +95,9 @@ public class TransactionEventLoadTest
         {
             try
             {
-                _output.WriteLine($"Checking balance for merchant {merchantId} on {date}, attempt {attempt} of {maxAttempts}");
-                
+                _output.WriteLine(
+                    $"Checking balance for merchant {merchantId} on {date}, attempt {attempt} of {maxAttempts}");
+
                 var balanceResponse = await httpClient.GetAsync(
                     $"{ConsolidationApiUrl}/api/dailybalances/daily?merchantId={merchantId}&date={date}");
 
@@ -153,7 +154,7 @@ public class TransactionEventLoadTest
             }
 
             // Wait before next attempt - increasing delay for later attempts
-            await Task.Delay(5000 + (attempt * 500));
+            await Task.Delay(5000 + attempt * 500);
         }
 
         // Stop timing
@@ -172,7 +173,7 @@ public class TransactionEventLoadTest
         // Assertions - more lenient to account for potential partial processing
         Assert.True(successfulTransactions >= numberOfTransactions * 0.9,
             "At least 90% of transactions should be created successfully");
-            
+
         // In a real-world scenario, we'd want to make this more robust with better failure handling
         Assert.True(successfulBalanceChecks > 0, "Balance check should be successful");
     }

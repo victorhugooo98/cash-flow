@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using CashFlow.Consolidation.API;
 using CashFlow.Consolidation.Application.DTOs;
 using Microsoft.AspNetCore.Mvc.Testing;
 

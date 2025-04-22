@@ -16,41 +16,34 @@ public class DailyBalanceRepository : IDailyBalanceRepository
         _context = context;
         _logger = logger;
     }
-    
+
     public async Task TryRecoverStuckRecordsAsync(string merchantId, DateTime date)
     {
         try
         {
             // Get current database locks
             var locks = await _context.GetActiveDatabaseLocksAsync();
-        
+
             if (locks.Any())
             {
                 _logger.LogWarning("Found {LockCount} database locks that might be affecting merchant {MerchantId}",
                     locks.Count, merchantId);
-            
-                foreach (var lockInfo in locks)
-                {
-                    _logger.LogWarning("Active lock: {LockInfo}", lockInfo);
-                }
+
+                foreach (var lockInfo in locks) _logger.LogWarning("Active lock: {LockInfo}", lockInfo);
             }
-        
+
             // Try to re-fetch the entity with tracking disabled
             var entity = await _context.DailyBalances
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.MerchantId == merchantId && x.Date == date.Date);
-        
+
             if (entity != null)
-            {
                 _logger.LogInformation(
                     "Found record for {MerchantId} on {Date} with Credits={Credits}, Debits={Debits}, Balance={Balance}",
                     merchantId, date.Date, entity.TotalCredits, entity.TotalDebits, entity.ClosingBalance);
-            }
             else
-            {
                 _logger.LogWarning("No record found for {MerchantId} on {Date} during recovery attempt",
                     merchantId, date.Date);
-            }
         }
         catch (Exception ex)
         {

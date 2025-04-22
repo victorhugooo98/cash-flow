@@ -13,7 +13,7 @@ namespace CashFlow.Consolidation.Infrastructure.Extensions;
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructureServices(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         IConfiguration configuration)
     {
         // Add DbContext
@@ -26,21 +26,21 @@ public static class ServiceCollectionExtensions
                     3,
                     TimeSpan.FromSeconds(5),
                     null);
-                
+
                 // Set command timeout to avoid long-running queries
                 sqlOptions.CommandTimeout(30);
             });
         });
-        
+
         // Register repositories
         services.AddScoped<IDailyBalanceRepository, DailyBalanceRepository>();
-        
+
         // Register services
         services.AddScoped<IProcessedTransactionsIdempotencyService, ProcessedTransactionsIdempotencyService>();
         services.AddScoped<IProcessedTransactionsIdempotencyService, ProcessedTransactionsIdempotencyService>();
 
         services.AddSingleton<IDistributedLockManager, InMemoryDistributedLockManager>();
-        
+
         return services;
     }
 }

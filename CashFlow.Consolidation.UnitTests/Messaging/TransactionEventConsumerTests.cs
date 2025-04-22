@@ -22,7 +22,7 @@ public class TransactionEventConsumerTests
         _mockIdempotencyService = new Mock<IProcessedTransactionsIdempotencyService>(); // Updated interface name
         _mockLogger = new Mock<ILogger<TransactionEventConsumer>>();
         _consumer = new TransactionEventConsumer(
-            _mockBalanceService.Object, 
+            _mockBalanceService.Object,
             _mockIdempotencyService.Object,
             _mockLogger.Object);
         _mockConsumeContext = new Mock<ConsumeContext<TransactionCreatedEvent>>();

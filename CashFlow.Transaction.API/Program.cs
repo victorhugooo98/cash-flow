@@ -1,7 +1,10 @@
 using CashFlow.Shared.Middleware;
 using CashFlow.Transaction.Application.Behaviors;
 using CashFlow.Transaction.Application.Commands.CreateTransaction;
+using CashFlow.Transaction.Application.DTOs;
 using CashFlow.Transaction.Application.Events;
+using CashFlow.Transaction.Application.Queries.GetTransactionById;
+using CashFlow.Transaction.Application.Queries.GetTransactionsByMerchant;
 using CashFlow.Transaction.Domain.Repositories;
 using CashFlow.Transaction.Infrastructure.Data;
 using CashFlow.Transaction.Infrastructure.Messaging;
@@ -108,6 +111,47 @@ public class Program
         app.MapHealthChecks("/health");
 
         app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+        app.MapGroup("/api/transactions")
+            .MapPost("/", async (IMediator mediator, CreateTransactionRequest request) =>
+            {
+                var command = CreateTransactionCommand.FromRequest(request);
+                var transactionId = await mediator.Send(command);
+                return Results.Created($"/api/transactions/{transactionId}", null);
+            })
+            .WithName("CreateTransaction")
+            .WithOpenApi()
+            .Produces<Guid>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        app.MapGroup("/api/transactions")
+            .MapGet("/{id}", async (IMediator mediator, Guid id) =>
+            {
+                var query = new GetTransactionByIdQuery { Id = id };
+                var transaction = await mediator.Send(query);
+                return transaction is null
+                    ? Results.NotFound()
+                    : Results.Ok(transaction);
+            })
+            .WithName("GetTransaction")
+            .WithOpenApi()
+            .Produces<TransactionDto>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        app.MapGroup("/api/transactions")
+            .MapGet("/", async (IMediator mediator, string merchantId, DateTime? date = null) =>
+            {
+                var query = new GetTransactionsByMerchantQuery
+                {
+                    MerchantId = merchantId,
+                    Date = date
+                };
+                var transactions = await mediator.Send(query);
+                return Results.Ok(transactions);
+            })
+            .WithName("GetTransactions")
+            .WithOpenApi()
+            .Produces<IEnumerable<TransactionDto>>();
 
 // Ensure database is created
         using (var scope = app.Services.CreateScope())

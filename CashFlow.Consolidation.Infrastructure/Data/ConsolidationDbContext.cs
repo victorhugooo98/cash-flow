@@ -43,11 +43,11 @@ public class ConsolidationDbContext : DbContext
             entity.ToTable("ProcessedMessages");
         });
     }
-    
+
     public async Task<List<string>> GetActiveDatabaseLocksAsync()
     {
         var locks = new List<string>();
-    
+
         // Note: This query works for SQL Server
         const string sql = """
                                    SELECT 
@@ -58,23 +58,23 @@ public class ConsolidationDbContext : DbContext
                                    FROM sys.dm_tran_locks
                                    WHERE resource_database_id = DB_ID()
                            """;
-    
+
         using var command = Database.GetDbConnection().CreateCommand();
         command.CommandText = sql;
-    
+
         if (command.Connection.State != System.Data.ConnectionState.Open)
             await command.Connection.OpenAsync();
-    
+
         using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             var objectName = reader["LockedObjectName"].ToString();
             var lockType = reader["LockType"].ToString();
             var lockStatus = reader["LockStatus"].ToString();
-        
+
             locks.Add($"Object: {objectName}, Type: {lockType}, Status: {lockStatus}");
         }
-    
+
         return locks;
     }
 }

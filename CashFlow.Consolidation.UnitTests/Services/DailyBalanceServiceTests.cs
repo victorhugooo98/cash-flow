@@ -21,14 +21,14 @@ public class DailyBalanceServiceTests
         _mockRepository = new Mock<IDailyBalanceRepository>();
         _mockLockManager = new Mock<IDistributedLockManager>();
         _mockLogger = new Mock<ILogger<DailyBalanceService>>();
-        
+
         // Setup the lock manager to return a disposable lock
         _mockLockManager
             .Setup(m => m.AcquireLockAsync(It.IsAny<string>(), It.IsAny<TimeSpan>()))
             .ReturnsAsync(Mock.Of<IDisposable>());
-            
+
         _service = new DailyBalanceService(
-            _mockRepository.Object, 
+            _mockRepository.Object,
             _mockLockManager.Object,
             _mockLogger.Object);
     }
@@ -57,7 +57,7 @@ public class DailyBalanceServiceTests
         _mockRepository
             .Setup(r => r.GetByMerchantAndDateAsync(merchantId, transactionDate.Date))
             .ReturnsAsync(existingBalance);
-    
+
         // Mock the TryUpdateWithConcurrencyHandlingAsync to return true
         _mockRepository
             .Setup(r => r.TryUpdateWithConcurrencyHandlingAsync(It.IsAny<DailyBalance>(), It.IsAny<int>()))
@@ -69,7 +69,8 @@ public class DailyBalanceServiceTests
         // Assert
         Assert.Equal(initialClosingBalance + transactionAmount, existingBalance.ClosingBalance);
         Assert.Equal(transactionAmount, existingBalance.TotalCredits);
-        _mockRepository.Verify(r => r.TryUpdateWithConcurrencyHandlingAsync(It.IsAny<DailyBalance>(), It.IsAny<int>()), Times.Once);
+        _mockRepository.Verify(r => r.TryUpdateWithConcurrencyHandlingAsync(It.IsAny<DailyBalance>(), It.IsAny<int>()),
+            Times.Once);
     }
 
     [Fact]
@@ -96,7 +97,7 @@ public class DailyBalanceServiceTests
         _mockRepository
             .Setup(r => r.GetByMerchantAndDateAsync(merchantId, transactionDate.Date))
             .ReturnsAsync(existingBalance);
-        
+
         // Mock the TryUpdateWithConcurrencyHandlingAsync to return true
         _mockRepository
             .Setup(r => r.TryUpdateWithConcurrencyHandlingAsync(It.IsAny<DailyBalance>(), It.IsAny<int>()))
@@ -108,7 +109,8 @@ public class DailyBalanceServiceTests
         // Assert
         Assert.Equal(initialClosingBalance - transactionAmount, existingBalance.ClosingBalance);
         Assert.Equal(transactionAmount, existingBalance.TotalDebits);
-        _mockRepository.Verify(r => r.TryUpdateWithConcurrencyHandlingAsync(It.IsAny<DailyBalance>(), It.IsAny<int>()), Times.Once);
+        _mockRepository.Verify(r => r.TryUpdateWithConcurrencyHandlingAsync(It.IsAny<DailyBalance>(), It.IsAny<int>()),
+            Times.Once);
     }
 
     [Fact]
