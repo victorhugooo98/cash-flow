@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CashFlow.Transaction.Integr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CashFlow.Consolidation.LoadTests", "CashFlow.Consolidation.LoadTests\CashFlow.Consolidation.LoadTests.csproj", "{A4F1AA9D-50AA-49DA-83F0-DDA45DBA0C25}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CashFlow.Consolidation.IntegrationTests", "CashFlow.Consolidation.IntegrationTests\CashFlow.Consolidation.IntegrationTests.csproj", "{5501BC6A-DDD1-4B46-8FEA-C84CADBFD539}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -84,5 +86,9 @@ Global
 		{A4F1AA9D-50AA-49DA-83F0-DDA45DBA0C25}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4F1AA9D-50AA-49DA-83F0-DDA45DBA0C25}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4F1AA9D-50AA-49DA-83F0-DDA45DBA0C25}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5501BC6A-DDD1-4B46-8FEA-C84CADBFD539}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5501BC6A-DDD1-4B46-8FEA-C84CADBFD539}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5501BC6A-DDD1-4B46-8FEA-C84CADBFD539}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5501BC6A-DDD1-4B46-8FEA-C84CADBFD539}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

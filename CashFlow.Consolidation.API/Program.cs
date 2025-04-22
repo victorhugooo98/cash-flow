@@ -1,6 +1,7 @@
 using CashFlow.Consolidation.Application.Behaviors;
 using CashFlow.Consolidation.Application.Handlers;
 using CashFlow.Consolidation.Application.Queries;
+using CashFlow.Consolidation.Application.Services;
 using CashFlow.Consolidation.Domain.Repositories;
 using CashFlow.Consolidation.Infrastructure.Data;
 using CashFlow.Consolidation.Infrastructure.Messaging;
@@ -55,6 +56,9 @@ builder.Services.AddDbContext<ConsolidationDbContext>(options =>
 
 // Add repositories
 builder.Services.AddScoped<IDailyBalanceRepository, DailyBalanceRepository>();
+
+builder.Services.AddScoped<IDailyBalanceService, DailyBalanceService>();
+builder.Services.AddScoped<IBalanceHistoryService, BalanceHistoryService>();
 
 // Add resilience policies
 builder.Services.AddSingleton<CircuitBreakerPolicyProvider>();
