@@ -34,7 +34,6 @@ public class ConsolidationServiceLoadTest
         var stopwatch = new Stopwatch();
 
         // Prepare request data
-        const string merchantId = "test-merchant";
         var url = "http://localhost:5002/health";
 
         // Run the test

@@ -112,20 +112,23 @@ public class Program
 
         app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-        app.MapGroup("/api/transactions")
-            .MapPost("/", async (IMediator mediator, CreateTransactionRequest request) =>
+        var transactionGroup = app.MapGroup("/api/transactions");
+
+// Create new transaction
+        transactionGroup.MapPost("/", async (IMediator mediator, CreateTransactionRequest request) =>
             {
                 var command = CreateTransactionCommand.FromRequest(request);
                 var transactionId = await mediator.Send(command);
-                return Results.Created($"/api/transactions/{transactionId}", null);
+                return Results.Created($"/api/transactions/{transactionId}", new { Id = transactionId });
             })
             .WithName("CreateTransaction")
             .WithOpenApi()
             .Produces<Guid>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .WithSummary("Creates a new transaction");
 
-        app.MapGroup("/api/transactions")
-            .MapGet("/{id}", async (IMediator mediator, Guid id) =>
+// Get transaction by ID
+        transactionGroup.MapGet("/{id}", async (IMediator mediator, Guid id) =>
             {
                 var query = new GetTransactionByIdQuery { Id = id };
                 var transaction = await mediator.Send(query);
@@ -136,22 +139,25 @@ public class Program
             .WithName("GetTransaction")
             .WithOpenApi()
             .Produces<TransactionDto>()
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Gets a transaction by ID");
 
-        app.MapGroup("/api/transactions")
-            .MapGet("/", async (IMediator mediator, string merchantId, DateTime? date = null) =>
+// Get transactions by merchant
+        transactionGroup.MapGet("/", async (IMediator mediator, [AsParameters] GetTransactionsRequest request) =>
             {
                 var query = new GetTransactionsByMerchantQuery
                 {
-                    MerchantId = merchantId,
-                    Date = date
+                    MerchantId = request.MerchantId,
+                    Date = request.Date
                 };
                 var transactions = await mediator.Send(query);
                 return Results.Ok(transactions);
             })
             .WithName("GetTransactions")
             .WithOpenApi()
-            .Produces<IEnumerable<TransactionDto>>();
+            .Produces<IEnumerable<TransactionDto>>()
+            .WithSummary("Gets transactions by merchant and optional date");
+
 
 // Ensure database is created
         using (var scope = app.Services.CreateScope())
@@ -162,4 +168,7 @@ public class Program
 
         app.Run();
     }
+
+// Add the parameters record for better API documentation
+    private record GetTransactionsRequest(string MerchantId, DateTime? Date = null);
 }
