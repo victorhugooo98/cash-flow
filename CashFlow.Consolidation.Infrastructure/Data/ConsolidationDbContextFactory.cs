@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
-using System.IO;
 
 namespace CashFlow.Consolidation.Infrastructure.Data;
 
@@ -18,8 +17,8 @@ public class ConsolidationDbContextFactory : IDesignTimeDbContextFactory<Consoli
         var optionsBuilder = new DbContextOptionsBuilder<ConsolidationDbContext>();
         optionsBuilder.UseSqlServer(
             configuration.GetConnectionString("ConsolidationDatabase") ??
-            "Server=localhost;Database=CashFlow.Consolidation;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;");
-
+            "Server=localhost,1433;Database=CashFlow.Consolidation;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;");
+        
         return new ConsolidationDbContext(optionsBuilder.Options);
     }
 }
