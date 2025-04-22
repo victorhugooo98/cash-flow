@@ -1,3 +1,4 @@
+using System.Globalization;
 using CashFlow.Consolidation.Application.DTOs;
 using CashFlow.Consolidation.Application.Queries;
 using FluentValidation;
@@ -107,11 +108,11 @@ public class BalanceHistoryController : ControllerBase
                 Overview = new
                 {
                     TotalTransactions = balanceHistory.Entries.Count,
-                    TotalCredits = balanceHistory.TotalCredits,
-                    TotalDebits = balanceHistory.TotalDebits,
-                    NetChange = balanceHistory.NetChange,
-                    InitialBalance = balanceHistory.InitialBalance,
-                    FinalBalance = balanceHistory.FinalBalance,
+                    balanceHistory.TotalCredits,
+                    balanceHistory.TotalDebits,
+                    balanceHistory.NetChange,
+                    balanceHistory.InitialBalance,
+                    balanceHistory.FinalBalance,
                     DailyBalanceTrend = balanceHistory.BalanceTrend
                 },
                 WeeklyTrends = weeklyTrends,
@@ -166,10 +167,10 @@ public class BalanceHistoryController : ControllerBase
     private static int GetWeekNumber(DateTime date)
     {
         // ISO 8601 week number calculation
-        var day = (int)System.Globalization.CultureInfo.InvariantCulture.Calendar.GetDayOfWeek(date);
-        return System.Globalization.CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(
+        var day = (int)CultureInfo.InvariantCulture.Calendar.GetDayOfWeek(date);
+        return CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(
             date.AddDays(day == 0 ? -6 : 1 - day),
-            System.Globalization.CalendarWeekRule.FirstFourDayWeek,
+            CalendarWeekRule.FirstFourDayWeek,
             DayOfWeek.Monday);
     }
 

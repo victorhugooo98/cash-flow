@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using CashFlow.Shared.Exceptions;
 using FluentValidation;

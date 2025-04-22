@@ -1,5 +1,5 @@
-using MediatR;
 using CashFlow.Transaction.Application.DTOs;
+using MediatR;
 
 namespace CashFlow.Transaction.Application.Queries.GetTransactionById;
 

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -30,7 +29,7 @@ public class HealthController : ControllerBase
             {
                 Component = e.Key,
                 Status = e.Value.Status.ToString(),
-                Description = e.Value.Description,
+                e.Value.Description,
                 Duration = e.Value.Duration.TotalMilliseconds
             }),
             TotalDuration = report.TotalDuration.TotalMilliseconds

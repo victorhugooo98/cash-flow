@@ -10,6 +10,7 @@ public class ConsolidationDbContext : DbContext
     }
 
     public DbSet<DailyBalance> DailyBalances { get; set; }
+    public DbSet<ProcessedMessage> ProcessedMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,6 +27,13 @@ public class ConsolidationDbContext : DbContext
 
             // Create unique index for merchant ID and date
             entity.HasIndex(e => new { e.MerchantId, e.Date }).IsUnique();
+        });
+        
+        modelBuilder.Entity<ProcessedMessage>(entity =>
+        {
+            entity.HasKey(e => e.MessageId);
+            entity.Property(e => e.ProcessedAt).IsRequired();
+            entity.ToTable("ProcessedMessages");
         });
     }
 }

@@ -1,11 +1,9 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using CashFlow.Consolidation.Application.DTOs;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.VisualStudio.TestPlatform.TestHost;
-using Xunit;
 
 namespace CashFlow.Consolidation.IntegrationTests;
 

@@ -1,3 +1,5 @@
+using CashFlow.Shared.Middleware;
+using CashFlow.Transaction.Application.Behaviors;
 using CashFlow.Transaction.Application.Commands.CreateTransaction;
 using CashFlow.Transaction.Application.Events;
 using CashFlow.Transaction.Domain.Repositories;
@@ -5,15 +7,12 @@ using CashFlow.Transaction.Infrastructure.Data;
 using CashFlow.Transaction.Infrastructure.Messaging;
 using CashFlow.Transaction.Infrastructure.Repositories;
 using MassTransit;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
-using Microsoft.OpenApi.Models;
-using System;
-using CashFlow.Shared.Middleware;
-using CashFlow.Transaction.Application.Behaviors;
-using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,10 +1,8 @@
-using CashFlow.Consolidation.Application.DTOs;
 using CashFlow.Consolidation.Application.Services;
 using CashFlow.Consolidation.Domain.Models;
 using CashFlow.Consolidation.Domain.Repositories;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace CashFlow.Consolidation.UnitTests.Services;
 

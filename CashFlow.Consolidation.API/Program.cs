@@ -1,5 +1,5 @@
 using CashFlow.Consolidation.Application.Behaviors;
-using CashFlow.Consolidation.Application.Handlers;
+using CashFlow.Consolidation.Application.Interfaces;
 using CashFlow.Consolidation.Application.Queries;
 using CashFlow.Consolidation.Application.Services;
 using CashFlow.Consolidation.Domain.Repositories;
@@ -7,9 +7,10 @@ using CashFlow.Consolidation.Infrastructure.Data;
 using CashFlow.Consolidation.Infrastructure.Messaging;
 using CashFlow.Consolidation.Infrastructure.Repositories;
 using CashFlow.Consolidation.Infrastructure.Resilience;
+using CashFlow.Consolidation.Infrastructure.Services;
 using CashFlow.Shared.Middleware;
+using CashFlow.Shared.Resilience;
 using FluentValidation;
-using FluentValidation.AspNetCore;
 using MassTransit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -51,8 +52,17 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Add DbContext
-builder.Services.AddDbContext<ConsolidationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("ConsolidationDatabase")));
+builder.Services.AddDbContext<ConsolidationDbContext>((provider, options) =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("ConsolidationDatabase");
+    options.UseSqlServer(connectionString, sqlOptions => 
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null);
+    });
+});
 
 // Add repositories
 builder.Services.AddScoped<IDailyBalanceRepository, DailyBalanceRepository>();
@@ -61,7 +71,11 @@ builder.Services.AddScoped<IDailyBalanceService, DailyBalanceService>();
 builder.Services.AddScoped<IBalanceHistoryService, BalanceHistoryService>();
 
 // Add resilience policies
+builder.Services.Configure<CircuitBreakerOptions>(builder.Configuration.GetSection("CircuitBreaker"));
+builder.Services.Configure<DatabaseRetryOptions>(builder.Configuration.GetSection("DatabaseRetry"));
 builder.Services.AddSingleton<CircuitBreakerPolicyProvider>();
+builder.Services.AddSingleton<DatabasePolicyProvider>();
+builder.Services.AddScoped<IIdempotencyService, IdempotencyService>();
 
 // Configure MassTransit with RabbitMQ
 builder.Services.AddMassTransit(x =>

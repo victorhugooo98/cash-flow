@@ -4,7 +4,6 @@ using CashFlow.Consolidation.Domain.Repositories;
 using CashFlow.Shared.Events;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace CashFlow.Consolidation.UnitTests.Services;
 

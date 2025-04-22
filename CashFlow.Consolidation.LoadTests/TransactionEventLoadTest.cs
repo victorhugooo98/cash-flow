@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -34,7 +35,7 @@ public class TransactionEventLoadTest
         // Track results
         var successfulTransactions = 0;
         var successfulBalanceChecks = 0;
-        var stopwatch = new System.Diagnostics.Stopwatch();
+        var stopwatch = new Stopwatch();
         
         // Start the test
         stopwatch.Start();
@@ -48,7 +49,7 @@ public class TransactionEventLoadTest
             var isCredit = i % 2 == 0;
             var request = new
             {
-                merchantId = merchantId,
+                merchantId,
                 amount = transactionAmount,
                 type = isCredit ? 0 : 1, // 0 = Credit, 1 = Debit
                 description = $"Load Test Transaction {i+1}"

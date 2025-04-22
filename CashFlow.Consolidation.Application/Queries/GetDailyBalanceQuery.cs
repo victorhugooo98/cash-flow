@@ -1,5 +1,5 @@
-using MediatR;
 using CashFlow.Consolidation.Application.DTOs;
+using MediatR;
 
 namespace CashFlow.Consolidation.Application.Queries;
 
