@@ -1,6 +1,20 @@
-@CashFlow.Transaction.API_HostAddress = http://localhost:5237
+# Create a new transaction
+POST {{CashFlow.Transaction.ApiHostAddress}}/api/transactions
+Content-Type: application/json
 
-GET {{CashFlow.Transaction.API_HostAddress}}/weatherforecast/
-Accept: application/json
+{
+  "merchantId": "test-merchant",
+  "amount": 350.50,
+  "type": 0,
+  "description": "Test transaction"
+}
 
 ###
+
+# Get transaction by ID
+GET {{CashFlow.Transaction.ApiHostAddress}}/api/transactions/5FE6ABB0-7E25-43FD-B755-E9A5835EBC7A
+
+###
+
+# Get transactions by merchant
+GET {{CashFlow.Transaction.ApiHostAddress}}/api/transactions?merchantId=test-merchant

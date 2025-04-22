@@ -1,6 +1,4 @@
-@CashFlow.Consolidation.API_HostAddress = http://localhost:5226
-
-GET {{CashFlow.Consolidation.API_HostAddress}}/weatherforecast/
-Accept: application/json
+# Get daily balance
+GET {{CashFlow.Consolidation.ApiHostAddress}}/api/dailybalances/daily?merchantId=test-merchant&date=2025-04-22
 
 ###
