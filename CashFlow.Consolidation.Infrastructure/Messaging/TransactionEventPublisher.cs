@@ -9,13 +9,13 @@ public class TransactionEventPublisher : ITransactionEventPublisher
 {
     private readonly IBus _bus;
     private readonly ILogger<TransactionEventPublisher> _logger;
-        
+
     public TransactionEventPublisher(IBus bus, ILogger<TransactionEventPublisher> logger)
     {
         _bus = bus;
         _logger = logger;
     }
-        
+
     public async Task PublishTransactionCreatedAsync(Domain.Models.Transaction transaction)
     {
         var @event = new TransactionCreatedEvent
@@ -27,12 +27,12 @@ public class TransactionEventPublisher : ITransactionEventPublisher
             Description = transaction.Description,
             Timestamp = transaction.Timestamp
         };
-            
+
         _logger.LogInformation(
-            "Publishing transaction created event for transaction {TransactionId}, merchant {MerchantId}, amount {Amount}", 
+            "Publishing transaction created event for transaction {TransactionId}, merchant {MerchantId}, amount {Amount}",
             transaction.Id, transaction.MerchantId, transaction.Amount);
-            
-        try 
+
+        try
         {
             await _bus.Publish(@event);
             _logger.LogInformation("Successfully published transaction event {TransactionId}", transaction.Id);

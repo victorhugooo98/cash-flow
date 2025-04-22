@@ -39,7 +39,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Add MediatR
-builder.Services.AddMediatR(cfg => {
+builder.Services.AddMediatR(cfg =>
+{
     cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly);
     cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 });
@@ -52,7 +53,7 @@ builder.Services.AddDbContext<TransactionDbContext>(options =>
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
 builder.Services.AddScoped<DbContextHealthCheck<TransactionDbContext>>();
-builder.Services.AddScoped<RabbitMQHealthCheck>(sp => 
+builder.Services.AddScoped<RabbitMQHealthCheck>(sp =>
     new RabbitMQHealthCheck(
         builder.Configuration["RabbitMQ:Host"] ?? "localhost",
         builder.Configuration["RabbitMQ:Username"] ?? "guest",
@@ -68,20 +69,17 @@ builder.Services.AddMassTransit(x =>
         var host = rabbitMqConfig["Host"] ?? "localhost";
         var username = rabbitMqConfig["Username"] ?? "guest";
         var password = rabbitMqConfig["Password"] ?? "guest";
-        
+
         // Configure RabbitMQ connection
         cfg.Host(new Uri($"rabbitmq://{host}"), h =>
         {
             h.Username(username);
             h.Password(password);
         });
-        
+
         // Configure message retry
-        cfg.UseMessageRetry(r => 
-        {
-            r.Interval(3, TimeSpan.FromSeconds(5));
-        });
-        
+        cfg.UseMessageRetry(r => { r.Interval(3, TimeSpan.FromSeconds(5)); });
+
         cfg.ConfigureEndpoints(context);
     });
 });
@@ -91,8 +89,8 @@ builder.Services.AddScoped<ITransactionEventPublisher, TransactionEventPublisher
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddCheck("db-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" })
-    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
+    .AddCheck("db-check", () => HealthCheckResult.Healthy(), new[] { "ready" })
+    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), new[] { "ready" });
 
 var app = builder.Build();
 
@@ -107,6 +105,11 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(80);
+});
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

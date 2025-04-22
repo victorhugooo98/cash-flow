@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # SQL Server
   sql-server:
@@ -12,12 +10,6 @@ services:
       - "1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
-    healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrongPassword!" -Q "SELECT 1" -b -o /dev/null
-      interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
     networks:
       - cashflow-network
 
@@ -26,26 +18,26 @@ services:
     image: rabbitmq:3-management
     container_name: cashflow-rabbitmq
     ports:
-      - "5672:5672"  # AMQP protocol port
-      - "15672:15672"  # Management UI port
+      - "5672:5672"
+      - "15672:15672"
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - cashflow-network
     healthcheck:
-      test: rabbitmq-diagnostics -q ping
+      test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - cashflow-network
 
   # Transaction Service
   transaction-service:
     build:
-      context: .
-      dockerfile: ./CashFlow.Transaction.API/Dockerfile
+      context: ../
+      dockerfile: CashFlow.Transaction.API/Dockerfile
     container_name: cashflow-transaction-service
     ports:
       - "5001:80"
@@ -54,18 +46,18 @@ services:
       - ConnectionStrings__TransactionDatabase=Server=sql-server;Database=CashFlow.Transactions;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;
       - RabbitMQ__Host=rabbitmq
     depends_on:
-      sql-server:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      sql-server:
+        condition: service_started
     networks:
       - cashflow-network
 
   # Consolidation Service
   consolidation-service:
     build:
-      context: .
-      dockerfile: ./CashFlow.Consolidation.API/Dockerfile
+      context: ../
+      dockerfile: CashFlow.Consolidation.API/Dockerfile
     container_name: cashflow-consolidation-service
     ports:
       - "5002:80"
@@ -74,10 +66,10 @@ services:
       - ConnectionStrings__ConsolidationDatabase=Server=sql-server;Database=CashFlow.Consolidation;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;
       - RabbitMQ__Host=rabbitmq
     depends_on:
-      sql-server:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      sql-server:
+        condition: service_started
     networks:
       - cashflow-network
 

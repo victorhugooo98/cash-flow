@@ -1,19 +1,21 @@
+using CashFlow.Consolidation.Application.Behaviors;
+using CashFlow.Consolidation.Application.Handlers;
+using CashFlow.Consolidation.Application.Queries;
 using CashFlow.Consolidation.Domain.Repositories;
 using CashFlow.Consolidation.Infrastructure.Data;
 using CashFlow.Consolidation.Infrastructure.Messaging;
 using CashFlow.Consolidation.Infrastructure.Repositories;
 using CashFlow.Consolidation.Infrastructure.Resilience;
+using CashFlow.Shared.Middleware;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using MassTransit;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
-using Microsoft.OpenApi.Models;
-using System;
-using CashFlow.Shared.Middleware;
-using CashFlow.Transaction.Application.Behaviors;
-using CashFlow.Transaction.Application.Commands.CreateTransaction;
-using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,10 +29,15 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-builder.Services.AddMediatR(cfg => {
-    cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly);
+// Add MediatR
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(GetDailyBalanceQuery).Assembly);
     cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 });
+
+// Add FluentValidation
+builder.Services.AddValidatorsFromAssembly(typeof(GetDailyBalanceQuery).Assembly);
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -59,11 +66,11 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<TransactionEventConsumer>(cfg =>
     {
         // Configure retry policy with exponential backoff
-        cfg.UseMessageRetry(r => 
+        cfg.UseMessageRetry(r =>
         {
             r.Intervals(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15));
         });
-        
+
         // Configure circuit breaker
         cfg.UseCircuitBreaker(cb =>
         {
@@ -73,7 +80,7 @@ builder.Services.AddMassTransit(x =>
             cb.ResetInterval = TimeSpan.FromMinutes(5);
         });
     });
-    
+
     // Configure RabbitMQ
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -81,39 +88,39 @@ builder.Services.AddMassTransit(x =>
         var host = rabbitMqConfig["Host"] ?? "localhost";
         var username = rabbitMqConfig["Username"] ?? "guest";
         var password = rabbitMqConfig["Password"] ?? "guest";
-        
+
         // Configure RabbitMQ connection
         cfg.Host(new Uri($"rabbitmq://{host}"), h =>
         {
             h.Username(username);
             h.Password(password);
         });
-        
+
         // Configure the consumer endpoint
         cfg.ReceiveEndpoint("cashflow-transaction-events", e =>
         {
             // Set concurrency limit to handle high load
             e.PrefetchCount = 50;
-            
+
             // Configure error handling
             e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
-            
+
             // Configure error queue instead of dead letter queue
             e.UseMessageRetry(r => r.Immediate(3));
             e.UseInMemoryOutbox();
-            
+
             // Configure consumer
             e.ConfigureConsumer<TransactionEventConsumer>(context);
         });
-        
+
         cfg.ConfigureEndpoints(context);
     });
 });
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddCheck("db-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" })
-    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
+    .AddCheck("db-check", () => HealthCheckResult.Healthy(), new[] { "ready" })
+    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), new[] { "ready" });
 
 var app = builder.Build();
 
@@ -128,6 +135,11 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(80);
+});
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

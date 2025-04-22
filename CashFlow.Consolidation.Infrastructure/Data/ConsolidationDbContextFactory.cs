@@ -10,14 +10,14 @@ public class ConsolidationDbContextFactory : IDesignTimeDbContextFactory<Consoli
     public ConsolidationDbContext CreateDbContext(string[] args)
     {
         var configuration = new ConfigurationBuilder()
-            .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"), optional: true)
-            .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.Development.json"), optional: true)
+            .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"), true)
+            .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.Development.json"), true)
             .AddEnvironmentVariables()
             .Build();
 
         var optionsBuilder = new DbContextOptionsBuilder<ConsolidationDbContext>();
         optionsBuilder.UseSqlServer(
-            configuration.GetConnectionString("ConsolidationDatabase") ?? 
+            configuration.GetConnectionString("ConsolidationDatabase") ??
             "Server=localhost;Database=CashFlow.Consolidation;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;");
 
         return new ConsolidationDbContext(optionsBuilder.Options);
