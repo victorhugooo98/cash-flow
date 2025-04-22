@@ -12,7 +12,6 @@ using Serilog.Events;
 using Microsoft.OpenApi.Models;
 using System;
 using CashFlow.Shared.Middleware;
-using CashFlow.Transaction.API.HealthChecks;
 using CashFlow.Transaction.Application.Behaviors;
 using MediatR;
 
@@ -52,12 +51,7 @@ builder.Services.AddDbContext<TransactionDbContext>(options =>
 // Add repositories
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
-builder.Services.AddScoped<DbContextHealthCheck<TransactionDbContext>>();
-builder.Services.AddScoped<RabbitMQHealthCheck>(sp =>
-    new RabbitMQHealthCheck(
-        builder.Configuration["RabbitMQ:Host"] ?? "localhost",
-        builder.Configuration["RabbitMQ:Username"] ?? "guest",
-        builder.Configuration["RabbitMQ:Password"] ?? "guest"));
+builder.Services.AddScoped<TransactionDbContext>();
 
 // Configure MassTransit with RabbitMQ
 builder.Services.AddMassTransit(x =>
@@ -89,8 +83,13 @@ builder.Services.AddScoped<ITransactionEventPublisher, TransactionEventPublisher
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddCheck("db-check", () => HealthCheckResult.Healthy(), new[] { "ready" })
-    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), new[] { "ready" });
+    .AddCheck("db-check", () => HealthCheckResult.Healthy(), ["ready"])
+    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), ["ready"]);
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(80);
+});
 
 var app = builder.Build();
 
@@ -105,11 +104,6 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
-
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ListenAnyIP(80);
-});
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

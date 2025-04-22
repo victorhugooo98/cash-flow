@@ -119,8 +119,13 @@ builder.Services.AddMassTransit(x =>
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddCheck("db-check", () => HealthCheckResult.Healthy(), new[] { "ready" })
-    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), new[] { "ready" });
+    .AddCheck("db-check", () => HealthCheckResult.Healthy(), ["ready"])
+    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), ["ready"]);
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(80);
+});
 
 var app = builder.Build();
 
@@ -135,11 +140,6 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
-
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ListenAnyIP(80);
-});
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
