@@ -6,14 +6,14 @@ using Microsoft.Extensions.Logging;
 
 namespace CashFlow.Consolidation.Infrastructure.Services;
 
-public class IdempotencyService : IIdempotencyService
+public class ProcessedMessagesIdempotencyService : IProcessedMessagesIdempotencyService
 {
     private readonly ConsolidationDbContext _dbContext;
-    private readonly ILogger<IdempotencyService> _logger;
+    private readonly ILogger<ProcessedMessagesIdempotencyService> _logger;
 
-    public IdempotencyService(
+    public ProcessedMessagesIdempotencyService(
         ConsolidationDbContext dbContext,
-        ILogger<IdempotencyService> logger)
+        ILogger<ProcessedMessagesIdempotencyService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;

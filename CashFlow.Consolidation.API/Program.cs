@@ -4,12 +4,11 @@ using CashFlow.Consolidation.Application.Queries;
 using CashFlow.Consolidation.Application.Services;
 using CashFlow.Consolidation.Domain.Repositories;
 using CashFlow.Consolidation.Infrastructure.Data;
+using CashFlow.Consolidation.Infrastructure.Extensions;
 using CashFlow.Consolidation.Infrastructure.Messaging;
 using CashFlow.Consolidation.Infrastructure.Repositories;
-using CashFlow.Consolidation.Infrastructure.Resilience;
 using CashFlow.Consolidation.Infrastructure.Services;
 using CashFlow.Shared.Middleware;
-using CashFlow.Shared.Resilience;
 using FluentValidation;
 using MassTransit;
 using MediatR;
@@ -17,20 +16,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using Serilog.Events;
-
-namespace CashFlow.Consolidation.API;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .WriteTo.Console()
             .CreateLogger();
@@ -57,31 +52,13 @@ public class Program
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "CashFlow Consolidation API", Version = "v1" });
         });
 
-// Add DbContext
-        builder.Services.AddDbContext<ConsolidationDbContext>((provider, options) =>
-        {
-            var connectionString = builder.Configuration.GetConnectionString("ConsolidationDatabase");
-            options.UseSqlServer(connectionString, sqlOptions =>
-            {
-                sqlOptions.EnableRetryOnFailure(
-                    3,
-                    TimeSpan.FromSeconds(30),
-                    null);
-            });
-        });
+// Add Infrastructure services (using the extension method)
+        builder.Services.AddInfrastructureServices(builder.Configuration);
 
-// Add repositories
-        builder.Services.AddScoped<IDailyBalanceRepository, DailyBalanceRepository>();
-
+// Add Application services
         builder.Services.AddScoped<IDailyBalanceService, DailyBalanceService>();
         builder.Services.AddScoped<IBalanceHistoryService, BalanceHistoryService>();
-
-// Add resilience policies
-        builder.Services.Configure<CircuitBreakerOptions>(builder.Configuration.GetSection("CircuitBreaker"));
-        builder.Services.Configure<DatabaseRetryOptions>(builder.Configuration.GetSection("DatabaseRetry"));
-        builder.Services.AddSingleton<CircuitBreakerPolicyProvider>();
-        builder.Services.AddSingleton<DatabasePolicyProvider>();
-        builder.Services.AddScoped<IIdempotencyService, IdempotencyService>();
+        builder.Services.AddSingleton<IDistributedLockManager, InMemoryDistributedLockManager>();
 
 // Configure MassTransit with RabbitMQ
         builder.Services.AddMassTransit(x =>
@@ -90,7 +67,11 @@ public class Program
             x.AddConsumer<TransactionEventConsumer>(cfg =>
             {
                 // Configure retry policy with exponential backoff
-                cfg.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
+                cfg.UseMessageRetry(r => r.Exponential(
+                    retryLimit: 5,
+                    minInterval: TimeSpan.FromSeconds(1),
+                    maxInterval: TimeSpan.FromSeconds(10),
+                    intervalDelta: TimeSpan.FromSeconds(1)));
 
                 // Configure circuit breaker
                 cfg.UseCircuitBreaker(cb =>
@@ -121,13 +102,17 @@ public class Program
                 cfg.ReceiveEndpoint("cashflow-transaction-events", e =>
                 {
                     // Set concurrency limit to handle high load
-                    e.PrefetchCount = 50;
+                    e.PrefetchCount = 20; // Lower to reduce contention
 
                     // Configure error handling
                     e.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
 
-                    // Configure error queue instead of dead letter queue
-                    e.UseMessageRetry(r => r.Immediate(3));
+                    // Add deadletter queue for failed messages
+                    e.UseDelayedRedelivery(r => r.Intervals(
+                        TimeSpan.FromSeconds(5),
+                        TimeSpan.FromSeconds(15),
+                        TimeSpan.FromSeconds(30)));
+            
                     e.UseInMemoryOutbox();
 
                     // Configure consumer
@@ -158,14 +143,13 @@ public class Program
         app.UseAuthorization();
         app.MapControllers();
         app.MapHealthChecks("/health");
-
         app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// Ensure database is created
+// Ensure database is created and migrations are applied
         using (var scope = app.Services.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<ConsolidationDbContext>();
-            dbContext.Database.Migrate();
+            await dbContext.Database.MigrateAsync();
         }
 
         app.Run();

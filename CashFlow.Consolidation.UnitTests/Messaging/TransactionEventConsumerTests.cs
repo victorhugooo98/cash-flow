@@ -11,7 +11,7 @@ namespace CashFlow.Consolidation.UnitTests.Messaging;
 public class TransactionEventConsumerTests
 {
     private readonly Mock<IDailyBalanceService> _mockBalanceService;
-    private readonly Mock<IIdempotencyService> _mockIdempotencyService;
+    private readonly Mock<IProcessedTransactionsIdempotencyService> _mockIdempotencyService; // Make sure this matches
     private readonly Mock<ILogger<TransactionEventConsumer>> _mockLogger;
     private readonly TransactionEventConsumer _consumer;
     private readonly Mock<ConsumeContext<TransactionCreatedEvent>> _mockConsumeContext;
@@ -19,9 +19,11 @@ public class TransactionEventConsumerTests
     public TransactionEventConsumerTests()
     {
         _mockBalanceService = new Mock<IDailyBalanceService>();
-        _mockIdempotencyService = new Mock<IIdempotencyService>();
+        _mockIdempotencyService = new Mock<IProcessedTransactionsIdempotencyService>(); // Updated interface name
         _mockLogger = new Mock<ILogger<TransactionEventConsumer>>();
-        _consumer = new TransactionEventConsumer(_mockBalanceService.Object, _mockIdempotencyService.Object,
+        _consumer = new TransactionEventConsumer(
+            _mockBalanceService.Object, 
+            _mockIdempotencyService.Object,
             _mockLogger.Object);
         _mockConsumeContext = new Mock<ConsumeContext<TransactionCreatedEvent>>();
 

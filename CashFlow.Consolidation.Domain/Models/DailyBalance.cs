@@ -10,6 +10,9 @@ public class DailyBalance
     public decimal ClosingBalance { get; private set; }
     public string MerchantId { get; private set; }
 
+    // Add concurrency token for optimistic concurrency
+    public byte[] RowVersion { get; private set; }
+
     // Private constructor for EF Core
     private DailyBalance()
     {

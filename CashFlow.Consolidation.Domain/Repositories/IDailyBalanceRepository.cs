@@ -9,4 +9,5 @@ public interface IDailyBalanceRepository
     Task AddAsync(DailyBalance dailyBalance);
     Task UpdateAsync(DailyBalance dailyBalance);
     Task SaveChangesAsync();
+    Task<bool> TryUpdateWithConcurrencyHandlingAsync(DailyBalance dailyBalance, int maxRetries = 3);
 }

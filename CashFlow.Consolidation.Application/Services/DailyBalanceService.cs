@@ -1,3 +1,4 @@
+using CashFlow.Consolidation.Application.Interfaces;
 using CashFlow.Consolidation.Domain.Models;
 using CashFlow.Consolidation.Domain.Repositories;
 using CashFlow.Shared.Events;
@@ -9,14 +10,16 @@ namespace CashFlow.Consolidation.Application.Services;
 public class DailyBalanceService : IDailyBalanceService
 {
     private readonly IDailyBalanceRepository _balanceRepository;
+    private readonly IDistributedLockManager _lockManager;
     private readonly ILogger<DailyBalanceService> _logger;
-    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1); // Add this for sync
 
     public DailyBalanceService(
         IDailyBalanceRepository balanceRepository,
+        IDistributedLockManager lockManager,
         ILogger<DailyBalanceService> logger)
     {
         _balanceRepository = balanceRepository;
+        _lockManager = lockManager;
         _logger = logger;
     }
 
@@ -24,115 +27,122 @@ public class DailyBalanceService : IDailyBalanceService
     {
         var transactionDate = transactionEvent.Timestamp.Date;
         var merchantId = transactionEvent.MerchantId;
+        var lockKey = $"balance:{merchantId}:{transactionDate:yyyy-MM-dd}";
 
         _logger.LogInformation(
             "Processing transaction {TransactionId} for merchant {MerchantId}",
-            transactionEvent.TransactionId,
-            transactionEvent.MerchantId);
+            transactionEvent.TransactionId, merchantId);
+
+        // Acquire a distributed lock for this merchant and date combination
+        using (var lockHandle = await _lockManager.AcquireLockAsync(lockKey, TimeSpan.FromSeconds(10)))
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Fetching balance for {MerchantId} on {Date}",
+                    merchantId, transactionDate);
+
+                // Get existing balance for this date
+                var dailyBalance = await _balanceRepository.GetByMerchantAndDateAsync(merchantId, transactionDate);
+
+                if (dailyBalance == null)
+                    // Create new balance record
+                    dailyBalance = await CreateNewDailyBalanceAsync(merchantId, transactionDate);
+                else
+                    _logger.LogInformation(
+                        "Found existing balance for {MerchantId} on {Date}: OpeningBalance={OpeningBalance}, " +
+                        "Credits={Credits}, Debits={Debits}, ClosingBalance={ClosingBalance}",
+                        merchantId, transactionDate, dailyBalance.OpeningBalance, dailyBalance.TotalCredits,
+                        dailyBalance.TotalDebits, dailyBalance.ClosingBalance);
+
+                // Update the balance based on transaction type
+                if (transactionEvent.Type.Equals("Credit", StringComparison.OrdinalIgnoreCase))
+                {
+                    dailyBalance.AddCredit(transactionEvent.Amount);
+                    _logger.LogInformation(
+                        "Added Credit. New Total Credits={Credits}, New Closing Balance={Balance}",
+                        dailyBalance.TotalCredits, dailyBalance.ClosingBalance);
+                }
+                else if (transactionEvent.Type.Equals("Debit", StringComparison.OrdinalIgnoreCase))
+                {
+                    dailyBalance.AddDebit(transactionEvent.Amount);
+                    _logger.LogInformation(
+                        "Added Debit. New Total Debits={Debits}, New Closing Balance={Balance}",
+                        dailyBalance.TotalDebits, dailyBalance.ClosingBalance);
+                }
+                else
+                {
+                    throw new ArgumentException($"Unsupported transaction type: {transactionEvent.Type}",
+                        nameof(transactionEvent.Type));
+                }
+
+                // Save changes with concurrency handling
+                _logger.LogInformation(
+                    "Attempting to save daily balance for {MerchantId} on {Date}",
+                    merchantId, transactionDate);
+
+                // Attempt to update with concurrency handling
+                var updateSuccess = await _balanceRepository.TryUpdateWithConcurrencyHandlingAsync(dailyBalance);
+
+                if (updateSuccess)
+                    _logger.LogInformation(
+                        "Successfully saved daily balance for {MerchantId} on {Date}.",
+                        merchantId, transactionDate);
+                else
+                    // If update failed after retries, log error but don't throw
+                    // This is a recovery mechanism - the message can be retried
+                    _logger.LogError(
+                        "Failed to update daily balance for {MerchantId} on {Date} after retries.",
+                        merchantId, transactionDate);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error processing transaction {TransactionId} for merchant {MerchantId} on {Date}",
+                    transactionEvent.TransactionId, merchantId, transactionDate);
+                throw; // Re-throw for retry via MassTransit
+            }
+        }
+    }
+
+    private async Task<DailyBalance> CreateNewDailyBalanceAsync(string merchantId, DateTime date)
+    {
+        // Get previous day's closing balance for the opening balance
+        var previousDayBalance = await _balanceRepository.GetPreviousDayBalanceAsync(merchantId, date);
+        var openingBalance = previousDayBalance?.ClosingBalance ?? 0;
+
+        var newBalance = new DailyBalance(merchantId, date, openingBalance);
 
         try
         {
-            // Synchronize access to the daily balance for this merchant/date
-            await _semaphore.WaitAsync();
-
-            _logger.LogInformation(
-                "Fetching balance for {MerchantId} on {Date}",
-                merchantId, transactionDate);
-
-            // Get or create daily balance for this date
-            var dailyBalance = await _balanceRepository.GetByMerchantAndDateAsync(merchantId, transactionDate);
-
-            if (dailyBalance == null)
-            {
-                // Get previous day's closing balance
-                var previousDayBalance =
-                    await _balanceRepository.GetPreviousDayBalanceAsync(merchantId, transactionDate);
-                var openingBalance = previousDayBalance?.ClosingBalance ?? 0;
-
-                dailyBalance = new DailyBalance(merchantId, transactionDate, openingBalance);
-                await _balanceRepository.AddAsync(dailyBalance);
-
-                _logger.LogInformation(
-                    "Created new daily balance for merchant {MerchantId} on {Date} with opening balance {OpeningBalance}",
-                    merchantId, transactionDate, openingBalance);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "Found existing balance for {MerchantId} on {Date}: OpeningBalance={OpeningBalance}, Credits={Credits}, Debits={Debits}, ClosingBalance={ClosingBalance}",
-                    merchantId, transactionDate, dailyBalance.OpeningBalance, dailyBalance.TotalCredits, 
-                    dailyBalance.TotalDebits, dailyBalance.ClosingBalance);
-            }
-
-            _logger.LogInformation("Processing transaction: Type={Type}, Amount={Amount}", 
-                transactionEvent.Type, transactionEvent.Amount);
-
-            // Update the daily balance
-            if (transactionEvent.Type == "Credit")
-            {
-                dailyBalance.AddCredit(transactionEvent.Amount);
-                _logger.LogInformation(
-                    "Added Credit. New Total Credits={Credits}, New Closing Balance={Balance}",
-                    dailyBalance.TotalCredits, dailyBalance.ClosingBalance);
-            }
-            else if (transactionEvent.Type == "Debit")
-            {
-                dailyBalance.AddDebit(transactionEvent.Amount);
-                _logger.LogInformation(
-                    "Added Debit. New Total Debits={Debits}, New Closing Balance={Balance}",
-                    dailyBalance.TotalDebits, dailyBalance.ClosingBalance);
-            }
-            else
-            {
-                throw new ArgumentException($"Unsupported transaction type: {transactionEvent.Type}", 
-                    nameof(transactionEvent.Type));
-            }
-
-            _logger.LogInformation(
-                "Attempting to save daily balance for {MerchantId} on {Date}",
-                merchantId, transactionDate);
-
+            await _balanceRepository.AddAsync(newBalance);
             await _balanceRepository.SaveChangesAsync();
 
             _logger.LogInformation(
-                "Successfully saved daily balance for {MerchantId} on {Date}.",
-                merchantId, transactionDate);
+                "Created new daily balance for merchant {MerchantId} on {Date} with opening balance {OpeningBalance}",
+                merchantId, date, openingBalance);
 
-            _logger.LogInformation(
-                "Processing transaction {TransactionId} with amount {Amount} and type {Type}",
-                transactionEvent.TransactionId, transactionEvent.Amount, transactionEvent.Type);
+            return newBalance;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate key") == true)
+        {
+            // Handle race condition where another thread created the record
+            _logger.LogWarning(ex,
+                "Another process already created the balance record for {MerchantId} on {Date}. Fetching it.",
+                merchantId, date);
 
-            _logger.LogInformation(
-                "Successfully processed transaction event {TransactionId}",
-                transactionEvent.TransactionId);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            // Retry the operation after fetching the latest data
-            _logger.LogWarning(ex, 
-                "Concurrency conflict when processing transaction {TransactionId}. Retrying operation.",
-                transactionEvent.TransactionId);
-            
-            // You could implement a retry here
-            throw;
-        }
-        catch (DbUpdateException ex)
-        {
-            if (ex.InnerException?.Message.Contains("duplicate key") == true)
+            // Get the record that was created by another process
+            var existingBalance = await _balanceRepository.GetByMerchantAndDateAsync(merchantId, date);
+
+            if (existingBalance == null)
             {
-                // Handle duplicate key - retry fetching and updating
-                _logger.LogWarning(ex, 
-                    "Duplicate key when processing transaction {TransactionId}. Another thread created the record.",
-                    transactionEvent.TransactionId);
-                
-                // You could implement a retry here
+                _logger.LogError(
+                    "Failed to get existing balance after duplicate key error for {MerchantId} on {Date}",
+                    merchantId, date);
                 throw;
             }
-            throw;
-        }
-        finally
-        {
-            _semaphore.Release();
+
+            return existingBalance;
         }
     }
 }

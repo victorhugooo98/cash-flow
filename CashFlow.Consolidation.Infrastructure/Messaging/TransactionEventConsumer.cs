@@ -9,12 +9,12 @@ namespace CashFlow.Consolidation.Infrastructure.Messaging;
 public class TransactionEventConsumer : IConsumer<TransactionCreatedEvent>
 {
     private readonly IDailyBalanceService _balanceService;
-    private readonly IIdempotencyService _idempotencyService;
+    private readonly IProcessedTransactionsIdempotencyService _idempotencyService;
     private readonly ILogger<TransactionEventConsumer> _logger;
 
     public TransactionEventConsumer(
         IDailyBalanceService balanceService,
-        IIdempotencyService idempotencyService,
+        IProcessedTransactionsIdempotencyService idempotencyService,
         ILogger<TransactionEventConsumer> logger)
     {
         _balanceService = balanceService;
@@ -24,41 +24,42 @@ public class TransactionEventConsumer : IConsumer<TransactionCreatedEvent>
 
     public async Task Consume(ConsumeContext<TransactionCreatedEvent> context)
     {
-        var @event = context.Message;
         var messageId = context.MessageId ?? Guid.NewGuid();
+        var transactionEvent = context.Message;
+
+        _logger.LogInformation(
+            "Processing message {MessageId} for transaction {TransactionId}",
+            messageId, transactionEvent.TransactionId);
 
         try
         {
-            // Check if this message has already been processed
-            if (await _idempotencyService.HasBeenProcessedAsync(messageId))
+            // Check if this message has already been processed (idempotency)
+            if (await _idempotencyService.HasBeenProcessedAsync(transactionEvent.TransactionId))
             {
                 _logger.LogInformation(
-                    "Message {MessageId} for transaction {TransactionId} already processed, skipping",
-                    messageId, @event.TransactionId);
+                    "Transaction {TransactionId} has already been processed, skipping",
+                    transactionEvent.TransactionId);
                 return;
             }
 
-            _logger.LogInformation(
-                "Processing message {MessageId} for transaction {TransactionId}",
-                messageId, @event.TransactionId);
-
             // Process the transaction
-            await _balanceService.ProcessTransactionAsync(@event);
+            await _balanceService.ProcessTransactionAsync(transactionEvent);
 
-            // Mark as processed to ensure idempotency
-            await _idempotencyService.MarkAsProcessedAsync(messageId, DateTime.UtcNow);
-
-            _logger.LogInformation("Processing transaction {TransactionId} with amount {Amount} and type {Type}",
-                @event.TransactionId, @event.Amount, @event.Type);
+            // Mark the transaction as processed
+            await _idempotencyService.MarkAsProcessedAsync(transactionEvent.TransactionId, DateTime.UtcNow);
 
             _logger.LogInformation(
                 "Successfully processed transaction event {TransactionId}",
-                @event.TransactionId);
+                transactionEvent.TransactionId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing transaction event {TransactionId}", @event.TransactionId);
-            throw; // Re-throw to trigger retry policy
+            _logger.LogError(ex,
+                "Error processing transaction event {TransactionId}",
+                transactionEvent.TransactionId);
+
+            // Rethrow the exception to trigger MassTransit's retry policy
+            throw;
         }
     }
 }
