@@ -2,10 +2,10 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using CashFlow.Transaction.API;
 using CashFlow.Transaction.Application.DTOs;
 using CashFlow.Transaction.Domain.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 
 namespace CashFlow.Transaction.IntegrationTests;
 

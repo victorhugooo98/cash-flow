@@ -83,10 +83,10 @@ public class CircuitBreakerOptions
 {
     public int ExceptionsAllowedBeforeBreaking { get; set; } = 5;
     public TimeSpan DurationOfBreak { get; set; } = TimeSpan.FromSeconds(30);
-    
+
     public int DatabaseExceptionsAllowedBeforeBreaking { get; set; } = 3;
     public TimeSpan DatabaseDurationOfBreak { get; set; } = TimeSpan.FromSeconds(15);
-    
+
     public int MessageBrokerExceptionsAllowedBeforeBreaking { get; set; } = 5;
     public TimeSpan MessageBrokerDurationOfBreak { get; set; } = TimeSpan.FromSeconds(30);
 }

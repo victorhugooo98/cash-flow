@@ -1,20 +1,63 @@
-# Create a new transaction
-POST {{CashFlow.Transaction.ApiHostAddress}}/api/transactions
+### CashFlow.Transaction.API.http ###
+
+@transactionHost = {{CashFlow.Transaction.ApiHostAddress}}
+@merchantId = test-merchant
+
+### Health Check
+GET {{transactionHost}}/health
+Accept: application/json
+
+### Create a credit transaction
+# @name createCreditTx
+POST {{transactionHost}}/api/transactions
 Content-Type: application/json
 
 {
-  "merchantId": "test-merchant",
-  "amount": 350.50,
+  "merchantId": "{{merchantId}}",
+  "amount": 12.50,
   "type": 0,
-  "description": "Test transaction"
+  "description": "Test credit transaction"
 }
 
-###
+### Store transaction ID from the previous response
+@transactionId = {{createCreditTx.response.headers.Location}}
 
-# Get transaction by ID
-GET {{CashFlow.Transaction.ApiHostAddress}}/api/transactions/5FE6ABB0-7E25-43FD-B755-E9A5835EBC7A
+### Create a debit transaction
+POST {{transactionHost}}/api/transactions
+Content-Type: application/json
 
-###
+{
+  "merchantId": "{{merchantId}}",
+  "amount": 150.25,
+  "type": 1,
+  "description": "Test debit transaction"
+}
 
-# Get transactions by merchant
-GET {{CashFlow.Transaction.ApiHostAddress}}/api/transactions?merchantId=test-merchant
+### Get all transactions by merchant
+GET {{transactionHost}}/api/transactions?merchantId={{merchantId}}
+
+### Get transactions by merchant for today
+# Use ISO date format YYYY-MM-DD
+GET {{transactionHost}}/api/transactions?merchantId={{merchantId}}&date=2025-04-22
+
+### Test validation - missing required field
+POST {{transactionHost}}/api/transactions
+Content-Type: application/json
+
+{
+  "merchantId": "{{merchantId}}",
+  "amount": 100.00,
+  "type": 0
+}
+
+### Test resilience - create multiple transactions rapidly (load test)
+# Run in a sequence to test idempotency
+POST {{transactionHost}}/api/transactions
+Content-Type: application/json
+
+{
+  "merchantId": "{{merchantId}}",
+  "amount": 10.00,
+  "type": 0,
+  "description": "Resilience test {{$timestamp}}"
+}

@@ -18,7 +18,7 @@ public class ConsolidationDbContextFactory : IDesignTimeDbContextFactory<Consoli
         optionsBuilder.UseSqlServer(
             configuration.GetConnectionString("ConsolidationDatabase") ??
             "Server=localhost,1433;Database=CashFlow.Consolidation;User Id=sa;Password=YourStrongPassword!;TrustServerCertificate=True;");
-        
+
         return new ConsolidationDbContext(optionsBuilder.Options);
     }
 }

@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using CashFlow.Consolidation.API;
 using CashFlow.Consolidation.Application.DTOs;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 
 namespace CashFlow.Consolidation.IntegrationTests;
 
@@ -11,6 +11,7 @@ public class ConsolidationApiIntegrationTests : IClassFixture<WebApplicationFact
 {
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
+
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -95,7 +96,7 @@ public class ConsolidationApiIntegrationTests : IClassFixture<WebApplicationFact
 
         // Act
         var response = await _client.GetAsync($"/api/dailybalances/daily?merchantId={merchantId}&date={date}");
-        
+
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var balance = await response.Content.ReadFromJsonAsync<DailyBalanceResponse>(_jsonOptions);

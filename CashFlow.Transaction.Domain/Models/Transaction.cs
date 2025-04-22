@@ -2,8 +2,8 @@ namespace CashFlow.Transaction.Domain.Models;
 
 public enum TransactionType
 {
-    Credit,
-    Debit
+    Credit = 0,
+    Debit = 1
 }
 
 public class Transaction

@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <PreserveCompilationContext>true</PreserveCompilationContext>
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -25,5 +27,20 @@
         <ProjectReference Include="..\CashFlow.Consolidation.Application\CashFlow.Consolidation.Application.csproj"/>
         <ProjectReference Include="..\CashFlow.Consolidation.Domain\CashFlow.Consolidation.Domain.csproj"/>
     </ItemGroup>
+
+    <Target Name="CopyDepsFile" AfterTargets="Build">
+        <PropertyGroup>
+            <ApiProjectDir>..\CashFlow.Consolidation.API\</ApiProjectDir>
+            <DepsFileName>CashFlow.Consolidation.API.deps.json</DepsFileName>
+            <SourceDepsFile>$(ApiProjectDir)bin\Debug\net9.0\$(DepsFileName)</SourceDepsFile>
+            <DestinationDepsFile>$(OutDir)$(DepsFileName)</DestinationDepsFile>
+        </PropertyGroup>
+
+        <Message Importance="high" Text="Copying $(SourceDepsFile) to $(DestinationDepsFile)"/>
+        <Copy SourceFiles="$(SourceDepsFile)"
+              DestinationFiles="$(DestinationDepsFile)"
+              SkipUnchangedFiles="true"
+              Condition="Exists('$(SourceDepsFile)')"/>
+    </Target>
 
 </Project>

@@ -66,7 +66,7 @@ public class BalanceHistoryController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving balance history for merchant {MerchantId}", merchantId);
-            return StatusCode(StatusCodes.Status500InternalServerError, 
+            return StatusCode(StatusCodes.Status500InternalServerError,
                 "An error occurred while retrieving the balance history");
         }
     }
@@ -124,7 +124,7 @@ public class BalanceHistoryController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving balance trends for merchant {MerchantId}", merchantId);
-            return StatusCode(StatusCodes.Status500InternalServerError, 
+            return StatusCode(StatusCodes.Status500InternalServerError,
                 "An error occurred while retrieving the balance trends");
         }
     }

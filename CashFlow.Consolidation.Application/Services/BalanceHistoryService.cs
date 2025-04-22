@@ -36,9 +36,8 @@ public class BalanceHistoryService : IBalanceHistoryService
         while (currentDate <= endDate.Date)
         {
             var balance = await _balanceRepository.GetByMerchantAndDateAsync(merchantId, currentDate);
-            
+
             if (balance != null)
-            {
                 history.Entries.Add(new BalanceHistoryEntryDto
                 {
                     Date = currentDate,
@@ -48,8 +47,7 @@ public class BalanceHistoryService : IBalanceHistoryService
                     TotalDebits = balance.TotalDebits,
                     NetChange = balance.TotalCredits - balance.TotalDebits
                 });
-            }
-            
+
             currentDate = currentDate.AddDays(1);
         }
 
@@ -62,25 +60,25 @@ public class BalanceHistoryService : IBalanceHistoryService
             history.InitialBalance = history.Entries.First().OpeningBalance;
             history.FinalBalance = history.Entries.Last().ClosingBalance;
             history.DaysWithActivity = history.Entries.Count;
-            
+
             // Calculate average daily transaction volumes
-            history.AverageDailyCredits = history.Entries.Count > 0 
-                ? history.TotalCredits / history.Entries.Count 
+            history.AverageDailyCredits = history.Entries.Count > 0
+                ? history.TotalCredits / history.Entries.Count
                 : 0;
-            
-            history.AverageDailyDebits = history.Entries.Count > 0 
-                ? history.TotalDebits / history.Entries.Count 
+
+            history.AverageDailyDebits = history.Entries.Count > 0
+                ? history.TotalDebits / history.Entries.Count
                 : 0;
-            
+
             // Calculate trends
             if (history.Entries.Count >= 2)
             {
-                var firstClosingBalance = history.Entries.First().ClosingBalance;
-                var lastClosingBalance = history.Entries.Last().ClosingBalance;
-                var daysBetween = (endDate - startDate).Days + 1;
-                
-                history.BalanceTrend = daysBetween > 0 
-                    ? (lastClosingBalance - firstClosingBalance) / daysBetween 
+                var firstOpening = history.InitialBalance;
+                var lastClosing = history.FinalBalance;
+                var activityDays = history.DaysWithActivity;
+
+                history.BalanceTrend = activityDays > 1
+                    ? (lastClosing - firstOpening) / activityDays
                     : 0;
             }
         }

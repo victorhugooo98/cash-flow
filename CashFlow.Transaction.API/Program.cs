@@ -14,103 +14,108 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace CashFlow.Transaction.API;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateLogger();
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateLogger();
 
-builder.Host.UseSerilog();
+        builder.Host.UseSerilog();
 
 // Add services to the container
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddControllers();
+        builder.Services.AddEndpointsApiExplorer();
 
 // Add Swagger
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "CashFlow Transaction API", Version = "v1" });
-});
-
-// Add MediatR
-builder.Services.AddMediatR(cfg =>
-{
-    cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly);
-    cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-});
-
-// Add DbContext
-builder.Services.AddDbContext<TransactionDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("TransactionDatabase")));
-
-// Add repositories
-builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-
-builder.Services.AddScoped<TransactionDbContext>();
-
-// Configure MassTransit with RabbitMQ
-builder.Services.AddMassTransit(x =>
-{
-    // Configure the RabbitMQ transport
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        var rabbitMqConfig = builder.Configuration.GetSection("RabbitMQ");
-        var host = rabbitMqConfig["Host"] ?? "localhost";
-        var username = rabbitMqConfig["Username"] ?? "guest";
-        var password = rabbitMqConfig["Password"] ?? "guest";
-
-        // Configure RabbitMQ connection
-        cfg.Host(new Uri($"rabbitmq://{host}"), h =>
+        builder.Services.AddSwaggerGen(c =>
         {
-            h.Username(username);
-            h.Password(password);
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "CashFlow Transaction API", Version = "v1" });
         });
 
-        // Configure message retry
-        cfg.UseMessageRetry(r => { r.Interval(3, TimeSpan.FromSeconds(5)); });
+// Add MediatR
+        builder.Services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly);
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        });
 
-        cfg.ConfigureEndpoints(context);
-    });
-});
+// Add DbContext
+        builder.Services.AddDbContext<TransactionDbContext>(options =>
+            options.UseSqlServer(builder.Configuration.GetConnectionString("TransactionDatabase")));
+
+// Add repositories
+        builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+
+        builder.Services.AddScoped<TransactionDbContext>();
+
+// Configure MassTransit with RabbitMQ
+        builder.Services.AddMassTransit(x =>
+        {
+            // Configure the RabbitMQ transport
+            x.UsingRabbitMq((context, cfg) =>
+            {
+                var rabbitMqConfig = builder.Configuration.GetSection("RabbitMQ");
+                var host = rabbitMqConfig["Host"] ?? "localhost";
+                var username = rabbitMqConfig["Username"] ?? "guest";
+                var password = rabbitMqConfig["Password"] ?? "guest";
+
+                // Configure RabbitMQ connection
+                cfg.Host(new Uri($"rabbitmq://{host}"), h =>
+                {
+                    h.Username(username);
+                    h.Password(password);
+                });
+
+                // Configure message retry
+                cfg.UseMessageRetry(r => r.Interval(5, TimeSpan.FromSeconds(1)));
+
+                cfg.ConfigureEndpoints(context);
+            });
+        });
 
 // Add event publisher
-builder.Services.AddScoped<ITransactionEventPublisher, TransactionEventPublisher>();
+        builder.Services.AddScoped<ITransactionEventPublisher, TransactionEventPublisher>();
 
 // Add health checks
-builder.Services.AddHealthChecks()
-    .AddCheck("db-check", () => HealthCheckResult.Healthy(), ["ready"])
-    .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), ["ready"]);
+        builder.Services.AddHealthChecks()
+            .AddCheck("db-check", () => HealthCheckResult.Healthy(), ["ready"])
+            .AddCheck("rabbitmq-check", () => HealthCheckResult.Healthy(), ["ready"]);
 
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ListenAnyIP(80);
-});
+        builder.WebHost.ConfigureKestrel(serverOptions => { serverOptions.ListenAnyIP(80); });
 
-var app = builder.Build();
+        var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CashFlow Transaction API v1"));
-}
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CashFlow Transaction API v1"));
+        }
 
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
-app.MapHealthChecks("/health");
+        app.UseHttpsRedirection();
+        app.UseAuthorization();
+        app.MapControllers();
+        app.MapHealthChecks("/health");
 
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Ensure database is created
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<TransactionDbContext>();
-    dbContext.Database.Migrate();
-}
+        using (var scope = app.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TransactionDbContext>();
+            dbContext.Database.Migrate();
+        }
 
-app.Run();
+        app.Run();
+    }
+}

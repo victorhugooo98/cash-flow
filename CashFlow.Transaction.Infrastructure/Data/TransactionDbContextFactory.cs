@@ -13,7 +13,7 @@ public class TransactionDbContextFactory : IDesignTimeDbContextFactory<Transacti
             .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.Development.json"), true)
             .AddEnvironmentVariables()
             .Build();
-        
+
         var optionsBuilder = new DbContextOptionsBuilder<TransactionDbContext>();
         optionsBuilder.UseSqlServer(
             configuration.GetConnectionString("TransactionDatabase") ??

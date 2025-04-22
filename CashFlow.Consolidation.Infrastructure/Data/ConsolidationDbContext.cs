@@ -25,10 +25,12 @@ public class ConsolidationDbContext : DbContext
             entity.Property(e => e.TotalDebits).HasColumnType("decimal(18,2)");
             entity.Property(e => e.ClosingBalance).HasColumnType("decimal(18,2)");
 
+            entity.Property(e => e.Date).HasColumnType("date");
+
             // Create unique index for merchant ID and date
             entity.HasIndex(e => new { e.MerchantId, e.Date }).IsUnique();
         });
-        
+
         modelBuilder.Entity<ProcessedMessage>(entity =>
         {
             entity.HasKey(e => e.MessageId);

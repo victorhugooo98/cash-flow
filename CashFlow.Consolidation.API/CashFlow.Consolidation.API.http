@@ -1,4 +1,40 @@
-# Get daily balance
-GET {{CashFlow.Consolidation.ApiHostAddress}}/api/dailybalances/daily?merchantId=test-merchant&date=2025-04-22
+### CashFlow.Consolidation.API.http ###
 
-###
+@consolidationHost = {{CashFlow.Consolidation.ApiHostAddress}}
+@merchantId = test-merchant
+@today = 2025-04-22
+@yesterday = 2025-04-21
+@lastWeek = 2025-04-15
+@lastMonth = 2025-03-22
+
+### Health Check
+GET {{consolidationHost}}/health
+Accept: application/json
+
+### Get daily balance for today
+GET {{consolidationHost}}/api/dailybalances/daily?merchantId={{merchantId}}&date={{today}}
+
+### Get daily balance for yesterday
+GET {{consolidationHost}}/api/dailybalances/daily?merchantId={{merchantId}}&date={{yesterday}}
+
+### Get all daily balances for a merchant
+GET {{consolidationHost}}/api/dailybalances?merchantId={{merchantId}}
+
+### Get daily balances with date range
+GET {{consolidationHost}}/api/dailybalances?merchantId={{merchantId}}&startDate={{lastWeek}}&endDate={{today}}
+
+### Get balance summary for default period (last 30 days)
+GET {{consolidationHost}}/api/dailybalances/summary?merchantId={{merchantId}}
+
+### Get balance summary for a specific period
+GET {{consolidationHost}}/api/dailybalances/summary?merchantId={{merchantId}}&startDate={{lastMonth}}&endDate={{today}}
+
+### Get balance history
+GET {{consolidationHost}}/api/balancehistory?merchantId={{merchantId}}&startDate={{lastWeek}}&endDate={{today}}
+
+### Get balance trends
+GET {{consolidationHost}}/api/balancehistory/trends?merchantId={{merchantId}}&startDate={{lastMonth}}&endDate={{today}}
+
+### Test resilience - Run these requests in sequence to test circuit breaker
+# Execute this request multiple times in sequence
+GET {{consolidationHost}}/api/dailybalances/daily?merchantId=resilience-test-{{$timestamp}}&date={{today}}

@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <PreserveCompilationContext>true</PreserveCompilationContext>
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -20,6 +22,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\CashFlow.Transaction.API\CashFlow.Transaction.API.csproj"/>
         <ProjectReference Include="..\CashFlow.Transaction.Application\CashFlow.Transaction.Application.csproj"/>
         <ProjectReference Include="..\CashFlow.Transaction.Domain\CashFlow.Transaction.Domain.csproj"/>
     </ItemGroup>

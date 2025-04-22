@@ -44,10 +44,13 @@ public class TransactionEventConsumer : IConsumer<TransactionCreatedEvent>
 
             // Process the transaction
             await _balanceService.ProcessTransactionAsync(@event);
-            
+
             // Mark as processed to ensure idempotency
             await _idempotencyService.MarkAsProcessedAsync(messageId, DateTime.UtcNow);
-            
+
+            _logger.LogInformation("Processing transaction {TransactionId} with amount {Amount} and type {Type}",
+                @event.TransactionId, @event.Amount, @event.Type);
+
             _logger.LogInformation(
                 "Successfully processed transaction event {TransactionId}",
                 @event.TransactionId);
