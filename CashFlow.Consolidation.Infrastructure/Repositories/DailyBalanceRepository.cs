@@ -10,7 +10,6 @@ public class DailyBalanceRepository(ConsolidationDbContext context) : IDailyBala
     public async Task<DailyBalance?> GetByMerchantAndDateAsync(string merchantId, DateTime date)
     {
         return await context.DailyBalances
-            .AsNoTracking()
             .FirstOrDefaultAsync(b => b.MerchantId == merchantId && b.Date == date.Date);
     }
 
@@ -19,7 +18,6 @@ public class DailyBalanceRepository(ConsolidationDbContext context) : IDailyBala
         var previousDay = date.Date.AddDays(-1);
 
         return await context.DailyBalances
-            .AsNoTracking()
             .Where(b => b.MerchantId == merchantId && b.Date <= previousDay)
             .OrderByDescending(b => b.Date)
             .FirstOrDefaultAsync();
@@ -32,7 +30,6 @@ public class DailyBalanceRepository(ConsolidationDbContext context) : IDailyBala
 
     public async Task UpdateAsync(DailyBalance dailyBalance)
     {
-        context.DailyBalances.Update(dailyBalance);
         await Task.CompletedTask;
     }
 
