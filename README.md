@@ -65,6 +65,7 @@ The easiest way to run the entire system is using Docker Compose:
 # Clone the repository
 git clone https://github.com/yourusername/cashflow.git
 cd cashflow
+cd docker
 
 # Start the services
 docker-compose up -d
